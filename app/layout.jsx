@@ -2,6 +2,9 @@
 import "../styles/globals.css";
 
 export const metadata = { title: "PROMIS Health Snapshot", description: "Ascension | Seton" };
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 export default function RootLayout({ children }){
   return (
