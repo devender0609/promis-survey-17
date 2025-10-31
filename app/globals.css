@@ -1,120 +1,95 @@
-/* --- Global reset & base --- */
+:root {
+  --bg: #e9f2f9;
+  --panel: #ffffff;
+  --ink: #0b3a5b;
+  --ink-2: #2f5874;
+  --accent: #0f5b99;
+  --accent-2: #104e82;
+  --btn: #0c4a6e;
+  --btn-hover: #0a3f5e;
+  --ring: #e6eef6;
+}
+
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
   margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  color: #083247;
-  background: radial-gradient(1200px 600px at 50% -200px, #eaf3fb 20%, #dfeefc 45%, #cfe3f7 75%, #bdd7f2 100%) fixed;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue",
+    Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+  color: var(--ink);
+  background: radial-gradient(1200px 600px at 60% -40%, #f7fbff 40%, var(--bg) 100%);
 }
 
-/* --- Page shell --- */
-.main-shell {
-  max-width: 1080px;
+.container {
+  max-width: 1150px;
   margin: 0 auto;
-  padding: 24px 16px 56px;
+  padding: 16px 22px 40px;
 }
 
-.page-card {
-  background: #fff;
-  border-radius: 18px;
-  padding: 22px;
-  box-shadow: 0 6px 24px rgba(3, 41, 64, 0.08), 0 2px 8px rgba(3, 41, 64, 0.06);
+.header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 0 6px;
 }
 
-/* --- Header / logo bar --- */
-.logo-bar {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 8px 0 18px;
-  border-bottom: 1px solid rgba(8, 50, 71, 0.08);
-  margin-bottom: 8px;
+.card {
+  background: var(--panel);
+  box-shadow: 0 12px 28px rgba(13, 46, 79, 0.08);
+  border-radius: 24px;
+  padding: 28px;
 }
-.logo-img { height: 44px; }
-.app-title {
-  font-size: 28px;
-  font-weight: 700;
+
+h1.title {
+  font-size: clamp(26px, 2.8vw, 40px);
+  line-height: 1.1;
+  margin: 14px 0 4px;
+  font-weight: 800;
   letter-spacing: .2px;
 }
 
-/* --- Headings --- */
-.h1 {
-  font-size: 36px;
-  font-weight: 800;
-  margin: 12px 0;
-  color: #0c4060;
-}
-.subhead {
-  margin-top: 6px;
-  color: #3b6a83;
-  font-size: 14px;
+.subtitle {
+  color: var(--ink-2);
+  text-align: center;
+  margin: 2px 0 16px;
+  font-weight: 600;
 }
 
-/* --- Buttons --- */
-.btn-row {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(140px, 1fr));
-  gap: 14px;
-  margin-top: 26px;
+.progressWrap { display: flex; justify-content: center; margin: 14px 0 22px; }
+
+.qtext {
+  font-size: clamp(20px, 2vw, 28px);
+  font-weight: 800;
+  letter-spacing: .3px;
+  margin: 8px 0 18px;
 }
-.btn {
+
+.choices {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.choice {
   appearance: none;
-  border: 0;
-  border-radius: 16px;
-  padding: 18px 16px;
-  font-size: 17px;
-  font-weight: 700;
+  border: none; outline: none;
+  background: var(--btn);
   color: #fff;
-  background: #094a6b;
-  cursor: pointer;
-  transition: transform .04s ease, box-shadow .2s ease, background-color .2s ease;
-  box-shadow: 0 6px 18px rgba(9, 74, 107, .18);
-}
-.btn:hover { transform: translateY(-1px); }
-.btn:active { transform: translateY(0); }
-.btn.alt { background: #0d5f86; }
-
-/* --- Progress ring placeholder --- */
-.progress-wrap {
-  display: grid;
-  place-items: center;
-  height: 160px;
-  width: 160px;
-  border-radius: 50%;
-  margin: 26px auto 8px;
-  background:
-    radial-gradient(closest-side, #fff 74%, transparent 75%),
-    conic-gradient(#d7e6f2 0 100%);
-  border: 8px solid #eef5fb;
-  color: #0b5a82;
-  font-weight: 800;
-  font-size: 22px;
-}
-
-/* --- Table styles for results --- */
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 12px;
-  font-size: 14px;
-}
-.table th, .table td {
-  padding: 12px 10px;
-  border-bottom: 1px solid #eaf2f7;
-}
-.badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 999px;
   font-weight: 700;
-  font-size: 12px;
-  color: #6a3b00;
-  background: #ffe3b6;
+  font-size: 18px;
+  padding: 18px 14px;
+  border-radius: 16px;
+  box-shadow: 0 8px 18px rgba(12, 74, 110, .18);
+  cursor: pointer;
+  transition: transform .05s ease, background .15s ease;
 }
+.choice:hover { background: var(--btn-hover); transform: translateY(-1px); }
 
-/* --- Utilities --- */
-.center { text-align: center; }
-.mt-12 { margin-top: 12px; }
-.mt-24 { margin-top: 24px; }
-.hidden { display:none; }
+.footerNote { text-align: center; color: #5b7287; margin-top: 20px; font-size: 13px; }
+
+.logo {
+  height: 56px; width: auto;
+  display: block;
+  object-fit: contain;
+  /* hide any white matte by blending with background */
+  background: transparent;
+  filter: drop-shadow(0 0 0 rgba(0,0,0,0));
+}
