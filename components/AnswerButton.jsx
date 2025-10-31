@@ -1,7 +1,6 @@
-"use client";
 export default function AnswerButton({ children, onClick }) {
   return (
-    <button className="choice" onClick={onClick} type="button">
+    <button className="btn" onClick={onClick}>
       {children}
     </button>
   );

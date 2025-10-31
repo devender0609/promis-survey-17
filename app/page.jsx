@@ -1,81 +1,79 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import LogoBar from "@/components/LogoBar";
-import ProgressRing from "@/components/ProgressRing";
-import AnswerButton from "@/components/AnswerButton";
-import { DOMAINS, ITEMS, OPTIONS_5, totalQuestions } from "@/lib/survey";
-import { scoreDomain } from "@/lib/scoring";
-import "./globals.css";
+import { useEffect, useMemo, useState } from "react";
+import LogoBar from "../components/LogoBar";
+import ProgressRing from "../components/ProgressRing";
+import AnswerButton from "../components/AnswerButton";
+import { DOMAINS, firstQuestion, nextQuestion, isDomainFinished, scoreDomain } from "../lib/survey";
 
-export default function Page() {
-  const [cursor, setCursor] = useState({ dIdx: 0, qIdx: 0 });
-  const [answers, setAnswers] = useState(() => {
-    const o = {}; for (const d of DOMAINS) o[d] = []; return o;
-  });
-  const total = useMemo(() => totalQuestions(), []);
-  const answered = DOMAINS.reduce((n, d) => n + answers[d].length, 0);
-  const pct = Math.min(100, Math.round((answered / total) * 100));
+export default function SurveyPage(){
+  // state
+  const [domainIdx, setDomainIdx] = useState(0);
+  const [answers, setAnswers] = useState(()=>Object.fromEntries(DOMAINS.map(d=>[d,[]])));
+  const [question, setQuestion] = useState(()=>firstQuestion(DOMAINS[0]));
+  const totalSteps = DOMAINS.length; // one item per domain in this demo
+  const stepsDone = useMemo(()=>DOMAINS.reduce((n,d)=>n+(answers[d].length>0?1:0),0),[answers]);
+  const pct = Math.min(100, Math.round((stepsDone/totalSteps)*100));
 
-  const domain = DOMAINS[cursor.dIdx];
-  const question = ITEMS[domain][cursor.qIdx];
+  useEffect(()=>{ setQuestion(firstQuestion(DOMAINS[domainIdx])); }, [domainIdx]);
 
-  async function handlePick(choiceIdx) {
-    // record
-    const copy = structuredClone(answers);
-    copy[domain].push(choiceIdx);
-    setAnswers(copy);
+  async function handlePick(value){
+    const d = DOMAINS[domainIdx];
+    setAnswers(prev => ({...prev, [d]: [...prev[d], value]}));
 
-    // move next
-    const moreInDomain = cursor.qIdx + 1 < ITEMS[domain].length;
-    if (moreInDomain) {
-      setCursor({ dIdx: cursor.dIdx, qIdx: cursor.qIdx + 1 });
-      return;
+    // single-item-per-domain demo → finish domain immediately
+    if(isDomainFinished({domain:d})){
+      // next domain or finish survey
+      if(domainIdx < DOMAINS.length-1){
+        setDomainIdx(i=>i+1);
+      }else{
+        // FINISH → score all domains and go to results
+        const out = {};
+        for(const dom of DOMAINS){
+          out[label(dom)] = await scoreDomain(dom, answers[dom]);
+        }
+        sessionStorage.setItem("promis_result", JSON.stringify(out));
+        window.location.href = "/results";
+      }
+    }else{
+      const nq = nextQuestion({domain:d});
+      setQuestion(nq);
     }
-    const moreDomains = cursor.dIdx + 1 < DOMAINS.length;
-    if (moreDomains) {
-      setCursor({ dIdx: cursor.dIdx + 1, qIdx: 0 });
-      return;
-    }
-
-    // finished → compute results (call API per domain), then route to /results
-    const result = {};
-    for (const d of DOMAINS) {
-      // score each domain via API (or fallback)
-      result[d] = await scoreDomain(d, copy[d]);
-    }
-    // persist to sessionStorage and go
-    sessionStorage.setItem("promis_result", JSON.stringify(result));
-    window.location.href = "/results";
   }
 
   return (
-    <>
+    <div className="container">
       <LogoBar />
-      <main className="container">
-        <div className="card">
-          <h1 className="title" style={{textAlign:'center'}}>
-            PROMIS Health Snapshot (Adaptive Short Form)
-          </h1>
-          <div className="subtitle">Texas Spine and Scoliosis, Austin TX</div>
 
-          <div className="progressWrap">
-            <ProgressRing pct={pct} />
-          </div>
+      <div className="card">
+        <h1 className="h1" style={{textAlign:"center"}}>
+          PROMIS Health Snapshot (Adaptive Short Form)
+        </h1>
+        <p className="sub">Texas Spine and Scoliosis, Austin TX</p>
 
-          <div className="qtext">{question}</div>
+        <ProgressRing pct={pct} />
 
-          <div className="choices">
-            {OPTIONS_5.map((lbl, i) => (
-              <AnswerButton key={i} onClick={() => handlePick(i)}>
-                {lbl}
-              </AnswerButton>
-            ))}
-          </div>
-
-          <div className="footerNote">{answered} of {total} answered</div>
+        <div className="q">
+          {question?.text ?? "Loading next question…"}
         </div>
-      </main>
-    </>
+
+        <div className="row">
+          {["Not at all","A little bit","Somewhat","Quite a bit","Very much"].map((txt,i)=>(
+            <AnswerButton key={i} onClick={()=>handlePick(i)}>{txt}</AnswerButton>
+          ))}
+        </div>
+      </div>
+    </div>
   );
+}
+
+function label(d){
+  return ({
+    PF:"Physical Function",
+    PI:"Pain Interference",
+    F:"Fatigue",
+    A:"Anxiety",
+    D:"Depression",
+    SR:"Social Roles"
+  })[d] ?? d;
 }

@@ -1,7 +1,8 @@
 export default function LogoBar() {
   return (
-    <div className="header container" aria-label="Ascension Seton">
-      <img src="/logo_new.png" alt="Ascension | Seton" className="logo" />
+    <div className="logoWrap">
+      <img className="logo" src="/logo_new.png" alt="Ascension | Seton" />
+      {/* the supplied logo already includes both marks; the divider above is visual */}
     </div>
   );
 }
