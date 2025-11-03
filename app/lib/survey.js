@@ -1,36 +1,58 @@
-// Minimal item bank per domain (expand freely). Each domain can have many items.
-// Progress ring will reflect the true total number of items answered.
+// app/lib/survey.js
+// Minimal working demo of domain → questions → scoring.
+// You can replace the question text and scoring with your calibrated logic later.
+
 export const DOMAINS = ["PF", "PI", "F", "A", "D", "SR"];
 
-export const QUESTIONS = {
+const BANK = {
   PF: [
-    { id: "pf_1", text: "Are you able to climb one flight of stairs without help?" },
-    { id: "pf_2", text: "Are you able to carry groceries?" },
+    "Are you able to climb one flight of stairs without help?",
+    "Are you able to carry groceries?",
   ],
   PI: [
-    { id: "pi_1", text: "In the past 7 days, did pain interfere with your work at home?" },
+    "In the past 7 days, how much did pain interfere with your day to day activities?",
+    "In the past 7 days, how much did pain interfere with your social activities?",
   ],
-  F: [{ id: "f_1", text: "In the past 7 days, did you run out of energy?" }],
-  A: [{ id: "a_1", text: "In the past 7 days, I felt nervous." }],
-  D: [{ id: "d_1", text: "In the past 7 days, I felt hopeless." }],
-  SR: [{ id: "sr_1", text: "I am able to do daily activities with my usual roles." }],
+  F: [
+    "In the past 7 days, I felt fatigued.",
+    "In the past 7 days, I had trouble starting things because I was tired.",
+  ],
+  A: [
+    "In the past 7 days, I felt hopeless.",
+    "In the past 7 days, I felt fearful.",
+  ],
+  D: [
+    "In the past 7 days, I felt worthless.",
+    "In the past 7 days, I felt lonely.",
+  ],
+  SR: [
+    "I have trouble doing regular activities with friends.",
+    "I have trouble doing my usual work.",
+  ],
 };
 
-export const totalItems = () =>
-  DOMAINS.reduce((n, d) => n + QUESTIONS[d].length, 0);
+// map LIKERT 0..4 to demo T-scores (replace w/ real IRT later)
+function likertToT(values) {
+  if (!values?.length) return 50;
+  const mean = values.reduce((a, b) => a + b, 0) / values.length; // 0..4
+  // crude demo transformation: 0→40, 2→50, 4→60 (+/- 10 range)
+  return Math.round(40 + (mean * 20) / 4);
+}
 
-export const firstQuestion = (domain) => QUESTIONS[domain][0];
-
-export const nextQuestion = ({ domain, index }) => {
-  const list = QUESTIONS[domain];
-  return list[index] ?? null;
-};
-
-export const isDomainFinished = ({ domain, count }) =>
-  count >= QUESTIONS[domain].length;
-
-// TODO: replace with your scoring API/model. For now returns plausible shells.
-export async function scoreDomain(domain, values) {
-  const base = { PF: 45, PI: 65, F: 70, A: 60, D: 55, SR: 50 }[domain] ?? 50;
-  return base;
+export function firstQuestion(domain) {
+  return { domain, index: 0, text: BANK[domain][0] };
+}
+export function nextQuestion({ domain, index }) {
+  const i = index + 1;
+  if (i >= BANK[domain].length) return null;
+  return { domain, index: i, text: BANK[domain][i] };
+}
+export function isDomainFinished(q) {
+  return q.index >= BANK[q.domain].length - 1;
+}
+export async function scoreDomain(domain, answers) {
+  return likertToT(answers);
+}
+export function domainCount(domain) {
+  return BANK[domain].length;
 }
