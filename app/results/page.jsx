@@ -1,14 +1,14 @@
 "use client";
 
+// prevent SSG no matter what the parent does
 export const dynamic = "force-dynamic";
-export const revalidate = 0;            // <-- number (valid)
 export const fetchCache = "force-no-store";
 
 import { useEffect, useState } from "react";
 
 const LABEL = { PF:"Physical Function", PI:"Pain Interference", F:"Fatigue", A:"Anxiety", D:"Depression", SR:"Social Roles" };
 
-export default function ResultsPage(){
+export default function ResultsPage() {
   const [data, setData] = useState(null);
 
   useEffect(() => {
@@ -21,7 +21,10 @@ export default function ResultsPage(){
   if (!data) {
     return (
       <main className="container">
-        <div className="card"><h2>Results unavailable</h2><p>Please complete the survey first.</p></div>
+        <div className="card">
+          <h2>Results unavailable</h2>
+          <p>Please complete the survey first.</p>
+        </div>
       </main>
     );
   }
@@ -36,19 +39,16 @@ export default function ResultsPage(){
 
         <table className="table">
           <thead>
-            <tr>
-              <th>Domain</th>
-              <th style={{textAlign:"right"}}>T-score</th>
-            </tr>
+            <tr><th>Domain</th><th style={{textAlign:"right"}}>T-score</th></tr>
           </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.domain}>
-                <td>{r.domain}</td>
-                <td style={{textAlign:"right", fontWeight:700}}>{r.score}</td>
-              </tr>
-            ))}
-          </tbody>
+        <tbody>
+          {rows.map(r => (
+            <tr key={r.domain}>
+              <td>{r.domain}</td>
+              <td style={{textAlign:"right", fontWeight:700}}>{r.score}</td>
+            </tr>
+          ))}
+        </tbody>
         </table>
 
         <div className="btn-row">
