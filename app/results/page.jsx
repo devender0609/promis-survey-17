@@ -1,28 +1,14 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 0;            // <-- number (valid)
 export const fetchCache = "force-no-store";
 
 import { useEffect, useState } from "react";
 
-const INTERP = {
-  "Physical Function": "Higher scores indicate BETTER function/ability.",
-  "Pain Interference": "Higher scores indicate MORE of the symptom/problem.",
-  Fatigue: "Higher scores indicate MORE of the symptom/problem.",
-  Anxiety: "Higher scores indicate MORE of the symptom/problem.",
-  Depression: "Higher scores indicate MORE of the symptom/problem.",
-  "Social Roles": "Higher scores indicate BETTER function/ability.",
-};
+const LABEL = { PF:"Physical Function", PI:"Pain Interference", F:"Fatigue", A:"Anxiety", D:"Depression", SR:"Social Roles" };
 
-function category(t) {
-  if (t >= 70) return { tag: "Severe", tone: "tag-red" };
-  if (t >= 60) return { tag: "Moderate", tone: "tag-orange" };
-  if (t >= 40) return { tag: "Mild Limitation", tone: "tag-yellow" };
-  return { tag: "Within Normal Limits", tone: "tag-green" };
-}
-
-export default function ResultsPage() {
+export default function ResultsPage(){
   const [data, setData] = useState(null);
 
   useEffect(() => {
@@ -34,67 +20,47 @@ export default function ResultsPage() {
 
   if (!data) {
     return (
-      <div className="page-wrap">
-        <section className="card">
-          <h1 className="title">PROMIS Assessment Results</h1>
-          <p className="subtitle">Texas Spine and Scoliosis, Austin TX</p>
-          <p style={{ marginTop: 16 }}>
-            Results are unavailable. Please complete the survey first.
-          </p>
-        </section>
-      </div>
+      <main className="container">
+        <div className="card"><h2>Results unavailable</h2><p>Please complete the survey first.</p></div>
+      </main>
     );
   }
 
-  const entries = Object.entries(data); // [ [domain, t], ... ]
+  const rows = Object.entries(data).map(([k,v]) => ({ domain: LABEL[k] ?? k, score: v }));
 
   return (
-    <div className="page-wrap">
-      <section className="card">
+    <main className="container">
+      <div className="card">
         <h1 className="title">PROMIS Assessment Results</h1>
         <p className="subtitle">Texas Spine and Scoliosis, Austin TX</p>
 
-        <div className="results-table">
-          <div className="row head">
-            <div>Domain</div>
-            <div className="right">T-score</div>
-            <div>Category</div>
-            <div>Interpretation</div>
-          </div>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Domain</th>
+              <th style={{textAlign:"right"}}>T-score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.domain}>
+                <td>{r.domain}</td>
+                <td style={{textAlign:"right", fontWeight:700}}>{r.score}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
-          {entries.map(([domain, t]) => {
-            const cat = category(Number(t));
-            return (
-              <div className="row" key={domain}>
-                <div className="strong">{domain}</div>
-                <div className="right strong">{Number(t).toFixed(1)}</div>
-                <div><span className={`tag ${cat.tone}`}>{cat.tag}</span></div>
-                <div>{INTERP[domain] ?? ""}</div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="actions">
+        <div className="btn-row">
+          <button onClick={() => window.print()} className="outline">Save as PDF</button>
           <button
             className="primary"
-            onClick={() =>
-              window.print()
-            }
+            onClick={() => (window.location.href = "https://texasspineandscoliosis.com/")}
           >
-            Print / Save PDF
-          </button>
-
-          <button
-            className="secondary"
-            onClick={() =>
-              (window.location.href = "https://texasspineandscoliosis.com/")
-            }
-          >
-            Submit & Finish
+            Submit &amp; Finish
           </button>
         </div>
-      </section>
-    </div>
+      </div>
+    </main>
   );
 }

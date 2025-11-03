@@ -2,152 +2,107 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-// ---- Domain list + a few demo questions per domain (edit freely) ----
-const DOMAINS = ["PF", "PI", "F", "A", "D", "SR"];
-const QUESTION_BANK = {
+/** --------- SIMPLE ITEM BANK (edit freely) ---------- */
+const DOMAINS = ["PF","PI","F","A","D","SR"];
+const ITEMS = {
   PF: [
     "Are you able to climb one flight of stairs without help?",
-    "Are you able to carry a laundry basket up a flight of stairs?",
+    "Are you able to carry a laundry basket of clothes up a flight of stairs?",
   ],
-  PI: [
-    "In the past 7 days, did pain interfere with your day-to-day activities?",
-    "In the past 7 days, did pain make it hard to sleep?",
-  ],
-  F: [
-    "In the past 7 days, did you run out of energy?",
-    "In the past 7 days, how often did you feel fatigued?",
-  ],
-  A: [
-    "In the past 7 days, I felt nervous.",
-    "In the past 7 days, I felt hopeless.",
-  ],
-  D: [
-    "In the past 7 days, I felt sad.",
-    "In the past 7 days, I felt like nothing could cheer me up.",
-  ],
-  SR: [
-    "In the past 7 days, I had trouble doing my regular social activities.",
-    "In the past 7 days, my health limited time with friends or family.",
-  ],
+  PI: ["In the past 7 days, did you have pain interfere with your daily activities?"],
+  F:  ["In the past 7 days, did you run out of energy?"],
+  A:  ["In the past 7 days, I felt nervous or anxious."],
+  D:  ["In the past 7 days, I felt hopeless."],
+  SR: ["In the past 7 days, I had trouble doing my usual social activities."]
 };
+const CHOICES = ["Not at all","A little bit","Somewhat","Quite a bit","Very much"];
 
-// label for results table
-const LABEL = {
-  PF: "Physical Function",
-  PI: "Pain Interference",
-  F: "Fatigue",
-  A: "Anxiety",
-  D: "Depression",
-  SR: "Social Roles",
-};
-
-// simple 5-point scoring  (0..4) -> mock T-score mapping
-function scoreDomain(domain, vals) {
-  if (!vals.length) return 50;
-  const mean = vals.reduce((a, b) => a + b, 0) / vals.length; // 0..4
-  // very lightweight mapping just to demo a spread ~20..80
-  return Math.round(20 + mean * 15 + Math.random() * 3); // 20..~83
+/** toy T-score mapping per choice; replace with your model */
+function choiceToT(choiceIdx, domain) {
+  const base = { PF:50, PI:50, F:50, A:50, D:50, SR:50 }[domain] ?? 50;
+  const dir  = { PF:-1, PI:+1, F:+1, A:+1, D:+1, SR:-1 }[domain] ?? +1;
+  return Math.round((base + dir * (choiceIdx*5 + 0)) * 10) / 10;
 }
 
-export default function SurveyPage() {
-  // positions
-  const [domainIdx, setDomainIdx] = useState(0);
-  const [qIdx, setQIdx] = useState(0);
-
-  // answers: { PF: number[], ... }
+export default function SurveyPage(){
+  // answers is a map of domain -> array of choice indexes
   const [answers, setAnswers] = useState(() =>
-    Object.fromEntries(DOMAINS.map((d) => [d, []]))
+    Object.fromEntries(DOMAINS.map(d => [d, []]))
   );
+  const [domainIdx, setDomainIdx] = useState(0);
 
-  const activeDomain = DOMAINS[domainIdx];
-  const activeQuestions = QUESTION_BANK[activeDomain];
-  const questionText = activeQuestions[qIdx];
+  const domain = DOMAINS[domainIdx];
+  const qIdx   = answers[domain].length;          // next question index for this domain
+  const question = ITEMS[domain][qIdx];
 
-  // progress: total answered / total questions
-  const totalQuestions = useMemo(
-    () =>
-      DOMAINS.reduce((n, d) => n + (QUESTION_BANK[d]?.length ?? 0), 0),
+  // progress = answered items / total items
+  const totalItems = useMemo(
+    () => DOMAINS.reduce((n,d)=>n + ITEMS[d].length, 0),
     []
   );
-  const answeredCount = useMemo(
-    () => DOMAINS.reduce((n, d) => n + (answers[d]?.length ?? 0), 0),
+  const answeredItems = useMemo(
+    () => DOMAINS.reduce((n,d)=>n + answers[d].length, 0),
     [answers]
   );
-  const pct = Math.min(100, Math.round((answeredCount / totalQuestions) * 100));
+  const pct = Math.min(100, Math.round((answeredItems / totalItems) * 100));
 
-  // pick a response 0..4
-  function handlePick(val) {
-    setAnswers((prev) => {
-      const next = { ...prev };
-      next[activeDomain] = [...next[activeDomain], val];
-      return next;
-    });
+  function handlePick(choiceIdx){
+    // compute the next snapshot first (avoids stale state)
+    const next = {
+      ...answers,
+      [domain]: [...answers[domain], choiceIdx]
+    };
+    setAnswers(next);
 
-    // advance question → domain → finish
-    if (qIdx < activeQuestions.length - 1) {
-      setQIdx((i) => i + 1);
-      return;
+    // if domain finished, move forward or finish
+    const finishedDomain = next[domain].length >= ITEMS[domain].length;
+    if (finishedDomain) {
+      if (domainIdx < DOMAINS.length - 1) {
+        setDomainIdx(domainIdx + 1);
+      } else {
+        // FINISH → compute simple T-scores and go to /results
+        const out = {};
+        for (const d of DOMAINS) {
+          const lastChoice = next[d][next[d].length - 1] ?? 2; // center if missing
+          out[d] = choiceToT(lastChoice, d);
+        }
+        sessionStorage.setItem("promis_result", JSON.stringify(out));
+        window.location.href = "/results";
+      }
     }
-
-    // last question of this domain
-    if (domainIdx < DOMAINS.length - 1) {
-      setDomainIdx((i) => i + 1);
-      setQIdx(0);
-      return;
-    }
-
-    // FINISH: score + stash + go to results
-    const result = {};
-    for (const d of DOMAINS) result[LABEL[d]] = scoreDomain(d, answers[d]);
-    // also include the last answer we just clicked
-    result[LABEL[activeDomain]] = scoreDomain(activeDomain, [
-      ...answers[activeDomain],
-      val,
-    ]);
-
-    sessionStorage.setItem("promis_result", JSON.stringify(result));
-    window.location.href = "/results";
   }
 
   return (
-    <div className="page-wrap">
-      <section className="card">
+    <main className="container">
+      <div className="card">
         <h1 className="title">PROMIS Health Snapshot (Adaptive Short Form)</h1>
         <p className="subtitle">Texas Spine and Scoliosis, Austin TX</p>
 
-        {/* Progress ring */}
+        {/* progress ring */}
         <div className="ring">
-          <svg viewBox="0 0 120 120" className="ring-svg">
+          <svg viewBox="0 0 120 120" className="ring-svg" aria-hidden="true">
             <circle cx="60" cy="60" r="52" className="ring-bg" />
             <circle
-              cx="60"
-              cy="60"
-              r="52"
+              cx="60" cy="60" r="52"
               className="ring-fg"
-              style={{
-                strokeDasharray: `${(pct / 100) * 327} 327`,
-              }}
+              style={{ strokeDasharray: `${pct*3.27} 1000` }}
             />
-            <text x="60" y="66" textAnchor="middle" className="ring-text">
-              {pct}%
-            </text>
           </svg>
+          <div className="ring-label">{pct}%</div>
         </div>
 
-        {/* Question */}
-        <div className="question">{questionText ?? "Loading…"}</div>
+        {/* question */}
+        <div className="question">{question ?? "Loading…"}</div>
 
-        {/* Answers */}
-        <div className="answers">
-          {["Not at all", "A little bit", "Somewhat", "Quite a bit", "Very much"].map(
-            (label, i) => (
-              <button key={i} className="answer-btn" onClick={() => handlePick(i)}>
-                {label}
-              </button>
-            )
-          )}
+        {/* choices */}
+        <div className="choice-row">
+          {CHOICES.map((txt, i) => (
+            <button key={i} className="choice" onClick={() => handlePick(i)}>
+              {txt}
+            </button>
+          ))}
         </div>
-      </section>
-    </div>
+      </div>
+    </main>
   );
 }
