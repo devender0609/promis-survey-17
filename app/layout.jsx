@@ -1,19 +1,18 @@
 // app/layout.jsx
+import "./globals.css";
+
+export const metadata = {
+  title: "PROMIS Health Snapshot",
+  description: "Ascension Seton – Texas Spine and Scoliosis",
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body style={{ background: "#f6fafc", margin: 0 }}>
-        <header style={{ display:"flex", justifyContent:"center", padding:"18px 0" }}>
-          <img
-            src="/logo_new.png"
-            alt="Ascension Seton"
-            style={{
-              height: 48,
-              objectFit: "contain",
-              background: "transparent",
-              filter: "drop-shadow(0 0 0 rgba(0,0,0,0))" // no white halo
-            }}
-          />
+      <body>
+        {/* Single global logo bar (so it doesn't duplicate on /) */}
+        <header className="logo-bar">
+          <img src="/logo_new.png" alt="Ascension | Seton" className="logo-img" />
         </header>
         <main>{children}</main>
       </body>
