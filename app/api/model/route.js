@@ -1,23 +1,17 @@
-export async function GET() {
-  return Response.json({ ok: true, msg: "hello from Vercel" });
-}
-
 export async function POST(req) {
-  const body = await req.json();
-  if (body?.action === 'batch' && Array.isArray(body.items)) {
-    // Expect [{domain, survey_t}]
-    const out = body.items.map(it => ({
-      domain: it.domain,
-      calibrated_t: Number(it.survey_t) // replace w/ real calibration
-    }));
-    return Response.json(out);
-  }
-  if (body?.action === 'score' && body.domain) {
-    return Response.json({
-      domain: body.domain,
-      survey_t: Number(body.survey_t ?? 50),
-      calibrated_t: Number(body.survey_t ?? 50),
+  try {
+    const body = await req.json();
+    const { action, domain, survey_t } = body || {};
+    if (action !== "score" || !domain || typeof survey_t !== "number") {
+      return new Response(JSON.stringify({ ok:false, error:"bad_request" }), { status: 400 });
+    }
+    // passthrough: pretend it's already calibrated
+    const calibrated_t = survey_t;
+    return new Response(JSON.stringify({ domain, survey_t, calibrated_t }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
     });
+  } catch (e) {
+    return new Response(JSON.stringify({ ok:false, error:String(e) }), { status: 500 });
   }
-  return new Response("Bad Request", { status: 400 });
 }
