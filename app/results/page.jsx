@@ -1,11 +1,10 @@
 ﻿// app/results/page.jsx
-export const revalidate = false;                // no ISR
-export const dynamic = "force-dynamic";        // always dynamic
-export const fetchCache = "force-no-store";    // don't cache fetches
+export const revalidate = false;             // no ISR
+export const dynamic = "force-dynamic";     // always dynamic
+export const fetchCache = "force-no-store"; // no fetch caching
 
 import ClientResults from "./ClientResults";
 
-export default function ResultsPage() {
-  // Server component just shells out to the client component
+export default function ResultsPage(){
   return <ClientResults />;
 }

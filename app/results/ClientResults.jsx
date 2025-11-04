@@ -1,123 +1,70 @@
 // app/results/ClientResults.jsx
 "use client";
-
 import { useEffect, useMemo, useState } from "react";
-import { DOMAINS, DOMAIN_NAMES, labelCategory, normalizeText } from "../lib/survey";
+import { DOMAINS, categoryFor, interpretations } from "../lib/survey";
 
-// Helper: safe parse from sessionStorage/localStorage
-function readJSON(key, fallback) {
-  try { const v = window.sessionStorage.getItem(key) ?? window.localStorage.getItem(key); 
-        return v ? JSON.parse(v) : fallback; } catch { return fallback; }
-}
+const domainNames = {
+  PF: "Physical Function",
+  PI: "Pain Interference",
+  F:  "Fatigue",
+  A:  "Anxiety",
+  D:  "Depression",
+  SR: "Social Roles",
+};
 
-// Compute bar colors (simple palette)
-const COLORS = { PF:"#5AA9E6", PI:"#F4442E", F:"#8B5CF6", A:"#F59E0B", D:"#10B981", SR:"#EC4899" };
+export default function ClientResults(){
+  const [data, setData] = useState(null);
 
-export default function ClientResults() {
-  // Expect an object like: { sessionId, site, whenISO, scores: {PF:.., PI:.., ...}, categories: {PF:..}, notes?:string }
-  const final = useMemo(() => readJSON("promisFinal", null), []);
-  const site  = normalizeText(final?.site ?? "Texas Spine and Scoliosis, Austin TX");
-  const whenISO = final?.whenISO || new Date().toISOString();
-  const sessionId = final?.sessionId || `PROMIS-${Math.random().toString(36).slice(2,8).toUpperCase()}`;
-
-  // Seed trends history
   useEffect(() => {
-    if (!final?.scores) return;
-    try {
-      const key = "promisHistory";
-      const prev = JSON.parse(localStorage.getItem(key) || "[]");
-      const now  = { date: whenISO, scores: final.scores };
-      const next = [...prev, now].slice(-12);
-      localStorage.setItem(key, JSON.stringify(next));
-    } catch {}
-  }, [final, whenISO]);
-
-  const history = useMemo(() => {
-    try { return JSON.parse(localStorage.getItem("promisHistory") || "[]"); }
-    catch { return []; }
+    const raw = sessionStorage.getItem("promis_result");
+    if (raw){
+      try { setData(JSON.parse(raw)); } catch {}
+    }
   }, []);
 
-  // For the table rows we need a stable list
-  const rows = DOMAINS.map(d => {
-    const t = Number(final?.scores?.[d] ?? 50);
-    // If caller passed a text category, normalize it; else try index mapping
-    const catRaw = final?.categories?.[d];
-    const cat = typeof catRaw === "string" ? normalizeText(catRaw) : labelCategory(d, catRaw);
-    const interp = (d==="PF" || d==="SR")
-      ? "Higher scores indicate BETTER function/ability."
-      : "Higher scores indicate MORE of the symptom/problem.";
-    return { d, name: DOMAIN_NAMES[d], t, cat, interp };
-  });
-
-  // Simple SVG line for each domain across history
-  const trendSVG = (() => {
-    const W = 960, H = 260, P = 40;     // padding
-    const pts = history.map((h, i) => ({ x: i, y: h.scores || {} }));
-    const N = Math.max(pts.length - 1, 1);
-    const scaleX = x => P + (x / Math.max(N,1)) * (W - 2*P);
-    const scaleY = t => {
-      const min=20, max=80;
-      const y = H - P - ((t - min) / (max - min)) * (H - 2*P);
-      return Math.max(P, Math.min(H - P, y));
-    };
-    const guides = [50, 60, 40].map(v => (
-      <line key={v} className="guide"
-            x1={P} y1={scaleY(v)} x2={W-P} y2={scaleY(v)} />
-    ));
-    const series = DOMAINS.map(code => {
-      const path = [];
-      pts.forEach((p, i) => {
-        const t = Number(p.y?.[code] ?? 50);
-        const x = scaleX(i), y = scaleY(t);
-        path.push(`${i===0 ? "M":"L"}${x},${y}`);
-      });
-      const color = COLORS[code];
-      return (
-        <g key={code}>
-          <path d={path.join(" ")} fill="none" stroke={color} strokeWidth="2.5" />
-          {pts.map((p,i)=>{
-            const t = Number(p.y?.[code] ?? 50);
-            const x = scaleX(i), y = scaleY(t);
-            return <circle key={i} cx={x} cy={y} r="3.5" fill={color} />;
-          })}
-        </g>
-      );
+  const rows = useMemo(() => {
+    if (!data?.tScores) return [];
+    return DOMAINS.map(d => {
+      const t = Number(data.tScores[d]?.toFixed ? data.tScores[d].toFixed(1) : data.tScores[d]);
+      const cat = categoryFor(d, t);
+      const interp = interpretations[d];
+      return { d, name: domainNames[d], t, cat, interp };
     });
-    return (
-      <svg viewBox={`0 0 ${W} ${H}`} aria-label="Trend lines by domain">
-        {guides}
-        {series}
-      </svg>
-    );
-  })();
+  }, [data]);
 
-  const savePDF = () => window.print();
-  const emailResults = () => {
-    try {
-      const subject = encodeURIComponent("PROMIS Results");
-      const body = encodeURIComponent(JSON.stringify(final, null, 2));
-      window.location.href = `mailto:?subject=${subject}&body=${body}`;
-    } catch {}
-  };
+  const completedOn = useMemo(() => {
+    if (!data?.stamp) return "";
+    try{
+      const dt = new Date(data.stamp);
+      return dt.toLocaleString();
+    }catch{ return ""; }
+  }, [data]);
+
+  if (!data) {
+    return (
+      <div className="card results-card">
+        <h1>PROMIS Assessment Results</h1>
+        <div className="subtle">Texas Spine and Scoliosis, Austin TX</div>
+        <p className="subtle">No results found. Please complete the survey first.</p>
+      </div>
+    );
+  }
 
   return (
-    <section className="results-wrap">
-      <div className="results-header">
-        <p className="meta-line">
-          Completed on <strong>{new Date(whenISO).toLocaleString()}</strong> — Session ID: <strong>{sessionId}</strong>
-        </p>
-        <h1 className="results-title">PROMIS Assessment Results</h1>
-        <p className="results-sub">{site}</p>
-      </div>
+    <>
+      <section className="card results-card">
+        <h1>PROMIS Assessment Results</h1>
+        <div className="subtle">Texas Spine and Scoliosis, Austin TX</div>
+        <div className="meta-small" style={{marginTop:8}}>
+          Completed on {completedOn} — <strong>Session ID:</strong> {data.sessionId}
+        </div>
 
-      {/* Table */}
-      <div style={{ padding: "8px 16px 0" }}>
-        <table className="table" role="table">
+        <table className="table" style={{marginTop:14}}>
           <thead>
             <tr>
-              <th>Domain</th>
-              <th>T-score</th>
-              <th>Category</th>
+              <th style={{width:"34%"}}>Domain</th>
+              <th style={{width:"12%"}}>T-score</th>
+              <th style={{width:"18%"}}>Category</th>
               <th>Interpretation</th>
             </tr>
           </thead>
@@ -125,61 +72,110 @@ export default function ClientResults() {
             {rows.map(r => (
               <tr key={r.d}>
                 <td>{r.name}</td>
-                <td style={{ fontWeight: 800 }}>{r.t.toFixed(1)}</td>
-                <td><span className="badge">{r.cat || "—"}</span></td>
+                <td>{r.t}</td>
+                <td><span className={`badge ${r.cat.className}`}>{r.cat.label}</span></td>
                 <td>{r.interp}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </section>
 
-      {/* Bar chart */}
-      <div className="panel">
-        <h3>PROMIS T-scores</h3>
-        <div className="bars" role="figure" aria-label="T-score bar chart">
-          <div className="midline" aria-hidden />
-          {rows.map(r => {
-            const pctHeight = Math.max(0, Math.min(100, ((r.t - 20) / 60) * 100)); // map 20-80 to 0-100%
-            return (
-              <div className="barWrap" key={r.d}>
-                <div className="bar" style={{ height:`${pctHeight}%`, background: COLORS[r.d] }}>
-                  <span className="barValue">{r.t.toFixed(1)}</span>
-                </div>
-                <div className="barX">{r.d}</div>
-              </div>
-            );
-          })}
-        </div>
-        <div style={{ fontSize:12, color:"#678", marginTop:8 }}>
-          PROMIS T-score (mean 50, SD 10). Shaded band indicates MCID zone (≈±3 around 50). Mean 50 (solid), ±1 SD (dashed).
-        </div>
-      </div>
+      {/* Bar chart (pure SVG, no deps) */}
+      <section className="chart-card" style={{marginTop:18}}>
+        <h3 className="chart-title">PROMIS T-scores</h3>
+        <Bars rows={rows}/>
+        <p className="meta-small" style={{marginTop:8}}>
+          PROMIS T-score (mean 50, SD 10). Shaded band indicates MCID zone (~±3 around 50). Mean 50 (solid), ±1 SD (dashed).
+        </p>
+      </section>
 
-      {/* Trends */}
-      <div className="panel">
-        <h3>Trends over time</h3>
-        <div className="trend">
-          {history.length === 0
-            ? <div style={{display:"grid",placeItems:"center",height:"100%",color:"#789"}}>No past results yet.</div>
-            : trendSVG}
-        </div>
-        <div style={{ fontSize:12, color:"#678", marginTop:8 }}>
+      {/* Trends over time — for demo, we show one point per domain at this date */}
+      <section className="chart-card" style={{marginTop:18}}>
+        <h3 className="chart-title">Trends over time</h3>
+        <Trend rows={rows}/>
+        <p className="meta-small" style={{marginTop:8}}>
           Y: T-score (20–80). X: Date. One colored line per domain. Hover points for domain, T-score, and date.
+        </p>
+        <div className="btn-row">
+          <button className="btn ghost" onClick={()=>window.print()}>Save as PDF</button>
+          <button className="btn ghost" onClick={()=>alert("Submitting & finishing…")}>Submit & Finish</button>
+          <button className="btn ghost" onClick={()=>window.print()}>Print</button>
+          <button className="btn ghost" onClick={()=>alert("Email feature can be wired to your backend.")}>Email Results</button>
         </div>
-      </div>
+        <div className="subtle" style={{textAlign:"center"}}>Thank you for completing the survey</div>
+      </section>
+    </>
+  );
+}
 
-      {/* Actions */}
-      <div className="actions">
-        <button className="btn light" onClick={savePDF}>Save as PDF</button>
-        <button className="btn secondary" onClick={()=>window.location.assign("/")}>Submit & Finish</button>
-        <button className="btn light" onClick={()=>window.print()}>Print</button>
-        <button className="btn" onClick={emailResults}>Email Results</button>
-      </div>
+function Bars({ rows }) {
+  const w = 900, h = 260, pad = 40;
+  const max = 80, min = 20;
+  const bandTop = yOf(53), bandBot = yOf(47);
+  const mean = yOf(50), sdTop = yOf(60), sdBot = yOf(40);
+  const colWidth = (w - pad*2) / rows.length;
 
-      <p style={{ textAlign:"center", color:"#567", fontSize:14, margin:"0 0 24px" }}>
-        Thank you for completing the survey
-      </p>
-    </section>
+  function yOf(t){ 
+    const pct = (t - min) / (max - min);
+    return h - pad - pct*(h - pad*2);
+  }
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} width="100%">
+      {/* horizontal guides */}
+      <rect x={pad} y={bandTop} width={w- pad*2} height={bandBot - bandTop} fill="#e9f5ff"/>
+      <line x1={pad} x2={w-pad} y1={mean} y2={mean} stroke="#b2c5d8" strokeWidth="2"/>
+      <line x1={pad} x2={w-pad} y1={sdTop} y2={sdTop} stroke="#d9e4ee" strokeDasharray="6 6"/>
+      <line x1={pad} x2={w-pad} y1={sdBot} y2={sdBot} stroke="#d9e4ee" strokeDasharray="6 6"/>
+
+      {rows.map((r, i) => {
+        const x = pad + i*colWidth + colWidth*0.18;
+        const bw = colWidth*0.64;
+        const y = yOf(r.t);
+        const base = yOf(20);
+        const color = ["#3b82f6","#ef4444","#8b5cf6","#f59e0b","#10b981","#ec4899"][i % 6];
+        return (
+          <g key={r.d}>
+            <rect x={x} y={y} width={bw} height={base - y} rx="8" fill={color} />
+            <text className="bar-label" x={x + bw/2} y={base + 16}>{r.d}</text>
+            <text className="bar-value" x={x + bw/2} y={y - 8}>{r.t}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function Trend({ rows }) {
+  // For now, draw a single-date “trend” baseline per domain
+  const w = 900, h = 260, pad = 40;
+  const min = 20, max = 80;
+  function yOf(t){ 
+    const pct = (t - min) / (max - min);
+    return h - pad - pct*(h - pad*2);
+  }
+  const mean = yOf(50), sdTop = yOf(60), sdBot = yOf(40);
+
+  const x1 = pad+40, x2 = w - pad - 40, mid = (x1+x2)/2;
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} width="100%">
+      <line x1={pad} x2={w-pad} y1={mean} y2={mean} stroke="#b2c5d8" strokeWidth="2"/>
+      <line x1={pad} x2={w-pad} y1={sdTop} y2={sdTop} stroke="#d9e4ee" strokeDasharray="6 6"/>
+      <line x1={pad} x2={w-pad} y1={sdBot} y2={sdBot} stroke="#d9e4ee" strokeDasharray="6 6"/>
+
+      {rows.map((r, i) => {
+        const color = ["#3b82f6","#ef4444","#8b5cf6","#f59e0b","#10b981","#ec4899"][i % 6];
+        const y = yOf(r.t);
+        // flat line with a single point (today)
+        return (
+          <g key={r.d}>
+            <line x1={x1} y1={y} x2={x2} y2={y} stroke={color} strokeWidth="3" opacity=".85"/>
+            <circle cx={mid} cy={y} r="6" fill={color}/>
+          </g>
+        );
+      })}
+    </svg>
   );
 }

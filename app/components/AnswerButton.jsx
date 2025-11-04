@@ -1,7 +1,8 @@
+// app/components/AnswerButton.jsx
 "use client";
 export default function AnswerButton({ children, onClick }) {
   return (
-    <button className="btn" onClick={onClick} type="button">
+    <button type="button" className="btn" onClick={onClick}>
       {children}
     </button>
   );
