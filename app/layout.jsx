@@ -1,24 +1,22 @@
 // app/layout.jsx
-import "./globals.css";
-import Image from "next/image";
+export const metadata = { title: "PROMIS Health Snapshot" };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+      </head>
       <body>
-        <header className="site-header">
-          <div className="logo-wrap">
-            <Image
-              src="/logo_new.png"
-              alt="Ascension Seton"
-              width={220}
-              height={60}
-              priority
-              className="site-logo"
-            />
-          </div>
+        {/* Single, centered brand bar (NO DUPLICATES) */}
+        <header className="brandbar" role="banner" aria-label="Brand">
+          <img src="/ascension.png" alt="Ascension" />
+          <div className="divider" aria-hidden />
+          <img src="/seton.png" alt="Seton" />
         </header>
-        <main className="site-main">{children}</main>
+
+        <main>{children}</main>
       </body>
     </html>
   );
