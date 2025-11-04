@@ -2,6 +2,9 @@
 export const revalidate = false;
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
+
+
+
 // app/results/page.jsx
 // Never ISR/prerender this route, and don't cache fetches
         // âœ… valid (number or false)
@@ -672,4 +675,5 @@ function TrendChart({ history }) {
     </div>
   );
 }
+
 
