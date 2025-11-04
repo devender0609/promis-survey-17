@@ -1,10 +1,12 @@
-// app/results/page.jsx
-"use client";
-
-// Never ISR/prerender this route, and don't cache fetches
-export const revalidate = false;        // ✅ valid (number or false)
+﻿"use client";
+export const revalidate = false;
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
+// app/results/page.jsx
+// Never ISR/prerender this route, and don't cache fetches
+        // âœ… valid (number or false)
+
+
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -20,7 +22,7 @@ const NAME = {
 };
 
 function categoryAndInterpretation(domain, t) {
-  // Basic, readable bucketization; tweak thresholds if you’d like.
+  // Basic, readable bucketization; tweak thresholds if youâ€™d like.
   // PF & SR: higher = BETTER function/ability
   // PI/A/D/F: higher = MORE symptom/problem
   const better = domain === "PF" || domain === "SR";
@@ -40,14 +42,14 @@ function categoryAndInterpretation(domain, t) {
     if (t >= 70) cat = "Severe";
     else if (t >= 60) cat = "Moderate";
     else if (t >= 55) cat = "Mild";
-    else cat = "None–Mild";
+    else cat = "Noneâ€“Mild";
   }
 
   return { cat, interp };
 }
 
 function fmt(n) {
-  return typeof n === "number" && isFinite(n) ? Number(n.toFixed(1)) : "—";
+  return typeof n === "number" && isFinite(n) ? Number(n.toFixed(1)) : "â€”";
 }
 
 // simple id + date for the header
@@ -90,7 +92,7 @@ function readHistory() {
 
 // ---------- tiny SVG chart utils
 const CH = {
-  // T-score domain is 20–80 for scaling on both charts
+  // T-score domain is 20â€“80 for scaling on both charts
   T_MIN: 20,
   T_MAX: 80,
   MEAN: 50,
@@ -135,7 +137,7 @@ export default function ResultsPage() {
       const raw = sessionStorage.getItem("promis_result");
       if (raw) parsed = JSON.parse(raw);
     } catch {}
-    // Fallback example (only if truly empty) so page doesn’t look blank in dev
+    // Fallback example (only if truly empty) so page doesnâ€™t look blank in dev
     if (!parsed) {
       parsed = { PF: 45, PI: 65, F: 70, A: 60, D: 55, SR: 50 };
     }
@@ -251,7 +253,7 @@ export default function ResultsPage() {
               fontSize: 12,
             }}
           >
-            Completed on <strong>{meta.completed}</strong> — Session ID:{" "}
+            Completed on <strong>{meta.completed}</strong> â€” Session ID:{" "}
             <strong>{meta.id}</strong>
           </div>
 
@@ -360,7 +362,7 @@ export default function ResultsPage() {
             </table>
           </div>
 
-          {/* --- Bar chart with MCID band + mean + ±1SD */}
+          {/* --- Bar chart with MCID band + mean + Â±1SD */}
           <div style={{ marginTop: 20 }}>
             <h3
               style={{
@@ -382,7 +384,7 @@ export default function ResultsPage() {
               }}
             >
               PROMIS T-score (mean 50, SD 10). Shaded band indicates MCID zone
-              (±3 around 50). Mean 50 (solid), ±1 SD (dashed).
+              (Â±3 around 50). Mean 50 (solid), Â±1 SD (dashed).
             </div>
           </div>
         </section>
@@ -409,7 +411,7 @@ export default function ResultsPage() {
               marginTop: 6,
             }}
           >
-            Y: T-score (20–80). X: Date. One colored line per domain. Hover
+            Y: T-score (20â€“80). X: Date. One colored line per domain. Hover
             points for T-score & date.
           </div>
         </section>
@@ -502,7 +504,7 @@ function BarChart({ scores }) {
       }}
     >
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="PROMIS bar chart">
-        {/* MCID shaded band (±3 around 50) */}
+        {/* MCID shaded band (Â±3 around 50) */}
         <rect
           x={8}
           y={tToY(CH.MEAN + CH.MCID, H)}
@@ -522,7 +524,7 @@ function BarChart({ scores }) {
           stroke="#d03232"
           strokeWidth="2"
         />
-        {/* ±1 SD (dashed) */}
+        {/* Â±1 SD (dashed) */}
         {[CH.MEAN - CH.SD, CH.MEAN + CH.SD].map((t, i) => (
           <line
             key={i}
@@ -659,7 +661,7 @@ function TrendChart({ history }) {
               <g key={i}>
                 <circle cx={p.x} cy={p.y} r="4.5" fill={colors[d]} opacity="0.95">
                   <title>
-                    {NAME[d]} — {fmt(p.t)} ( {new Date(p.at).toLocaleDateString()} )
+                    {NAME[d]} â€” {fmt(p.t)} ( {new Date(p.at).toLocaleDateString()} )
                   </title>
                 </circle>
               </g>
@@ -670,3 +672,4 @@ function TrendChart({ history }) {
     </div>
   );
 }
+
