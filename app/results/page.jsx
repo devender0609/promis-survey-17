@@ -1,7 +1,8 @@
 ﻿"use client";
-export const revalidate = false;
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
+
+
 
 
 
@@ -675,5 +676,7 @@ function TrendChart({ history }) {
     </div>
   );
 }
+
+
 
 
