@@ -1,29 +1,24 @@
 // app/layout.jsx
 import "./globals.css";
-
-export const metadata = {
-  title: "PROMIS Survey",
-  description: "Adaptive PROMIS Short Form",
-};
+import Image from "next/image";
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className="bg-sky-50/50 text-slate-800">
-        {/* Single, centered brand bar (remove any extra logo markup elsewhere) */}
-        <header className="w-full py-5">
-          <div className="mx-auto max-w-6xl flex items-center justify-center">
-            {/* Use a transparent PNG if you have one; this will center & blend */}
-            <img
+      <body>
+        <header className="site-header">
+          <div className="logo-wrap">
+            <Image
               src="/logo_new.png"
               alt="Ascension Seton"
-              className="h-16 w-auto object-contain mix-blend-multiply opacity-95"
-              draggable="false"
+              width={220}
+              height={60}
+              priority
+              className="site-logo"
             />
           </div>
         </header>
-
-        <main className="mx-auto max-w-6xl p-4">{children}</main>
+        <main className="site-main">{children}</main>
       </body>
     </html>
   );
