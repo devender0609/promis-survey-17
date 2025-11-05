@@ -1,54 +1,64 @@
 ﻿// app/results/page.jsx
 "use client";
 
+// Never prerender/cache this route
 export const revalidate = false;
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import logo from "@/public/logo_new.svg";
+import Image from "next/image";
 
-function Header() {
-  return (
-    <header className="site-header">
-      <Image src={logo} alt="Ascension Seton" className="header-logo" priority />
-    </header>
-  );
-}
+const LABEL = {
+  PF: "Physical Function",
+  PI: "Pain Interference",
+  F:  "Fatigue",
+  A:  "Anxiety",
+  D:  "Depression",
+  SR: "Social Roles",
+};
 
 export default function ResultsPage() {
-  const [last, setLast] = useState<any>(null);
-  const [history, setHistory] = useState<any[]>([]);
+  const [last, setLast] = useState(null);
+  const [history, setHistory] = useState([]);
 
   useEffect(() => {
     try {
-      const raw = window.sessionStorage.getItem("promis_last");
-      const hist = window.sessionStorage.getItem("promis_history");
-      setLast(raw ? JSON.parse(raw) : null);
-      setHistory(hist ? JSON.parse(hist) : []);
-    } catch {
-      setLast(null);
-      setHistory([]);
-    }
+      const l = window.sessionStorage.getItem("promis_last");
+      const h = window.sessionStorage.getItem("promis_history");
+      if (l) setLast(JSON.parse(l));
+      if (h) setHistory(JSON.parse(h));
+    } catch {}
   }, []);
 
-  const rows = last?.results ?? [];
+  const rows = last?.results || [];
+  const tByDomain = useMemo(() => {
+    const map = { PF: [], PI: [], F: [], A: [], D: [], SR: [] };
+    history.forEach((r) => {
+      (r.results || []).forEach((x) => {
+        map[x.domain].push({ when: r.when, T: x.T });
+      });
+    });
+    return map;
+  }, [history]);
 
   return (
     <>
-      <Header />
+      <header className="site-header">
+        <Image src="/logo_new.svg" alt="Ascension Seton" className="header-logo" width={260} height={54} priority />
+      </header>
+
       <main className="page-wrap">
         <section className="card">
           <h1 className="title">PROMIS Assessment Results</h1>
           <p className="subtitle">
             Texas Spine and Scoliosis, Austin TX
-            {last?.when ? ` • Completed on ${new Date(last.when).toLocaleString()} — Session ID: ${last.sessionId}` : ""}
+            {last?.sessionId ? <> — <strong>Session ID:</strong> {last.sessionId}</> : null}
           </p>
 
-          {/* Table */}
-          <div className="table-wrap">
-            <table className="results-table">
+          {/* Results table */}
+          <div className="table-wrap" style={{ display: "flex", justifyContent: "center" }}>
+            <table className="results-table" style={{ maxWidth: 980 }}>
               <thead>
                 <tr>
                   <th>Domain</th>
@@ -58,34 +68,32 @@ export default function ResultsPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r: any, idx: number) => (
-                  <tr key={r.domain}>
+                {rows.map((r, idx) => {
+                  const interp =
+                    r.domain === "PF" || r.domain === "SR"
+                      ? "Higher scores indicate BETTER function/ability."
+                      : "Higher scores indicate MORE of the symptom/problem.";
+                return (
+                  <tr key={r.label + idx}>
                     <td>{r.label}</td>
                     <td>{r.T}</td>
                     <td>
                       <span
                         className="pill"
-                        style={{
-                          color: r.catColor,
-                          backgroundColor: r.catBg,
-                          borderColor: r.catColor + "33",
-                        }}
+                        style={{ color: r.catColor, background: r.catBg, borderColor: r.catColor + "22" }}
+                        title={r.category}
                       >
                         {r.category}
                       </span>
                     </td>
-                    <td>
-                      {r.domain === "PF" || r.domain === "SR"
-                        ? "Higher scores indicate BETTER function/ability."
-                        : "Higher scores indicate MORE of the symptom/problem."}
-                    </td>
+                    <td>{interp}</td>
                   </tr>
-                ))}
+                );})}
               </tbody>
             </table>
           </div>
 
-          {/* Bars */}
+          {/* Simple bar chart */}
           <div className="chart-card">
             <h3>PROMIS T-scores</h3>
             <div className="bars">
@@ -94,92 +102,57 @@ export default function ResultsPage() {
                 <div className="ref sd" />
                 <div className="ref sd" />
               </div>
-              {rows.map((r: any) => {
-                const pct = Math.max(8, Math.min(100, (r.T - 20) / 60 * 100));
+              {rows.map((r) => {
+                // Bar height: map T 20–80 onto 20–100%
+                const h = 20 + ((r.T - 20) / 60) * 80;
                 return (
-                  <div className="bar" key={r.domain}>
-                    <div className="bar-fill" style={{ height: `${pct}%` }}>
-                      <div className="bar-value">{r.T}</div>
+                  <div className="bar" key={r.label}>
+                    <div className="bar-fill" style={{ height: `${h}%` }}>
+                      <span className="bar-value">{r.T}</span>
                     </div>
                     <div className="bar-label">{r.domain}</div>
                   </div>
                 );
               })}
             </div>
-            <div style={{ fontSize: 12, color: "#56708a", marginTop: 6 }}>
-              PROMIS T-score (mean 50, SD 10). Shaded band indicates MCID zone (≈±3 around 50). Mean 50 (solid), ±1 SD (dashed).
-            </div>
+            <small>PROMIS T-score (mean 50, SD 10). Shaded band indicates MCID zone (~±3 around 50). Mean 50 (solid), ±1 SD (dashed).</small>
           </div>
 
           {/* Trends over time */}
           <div className="chart-card">
             <h3>Trends over time</h3>
-            {history.length === 0 ? (
-              <div style={{ color: "#5c748b" }}>No prior sessions yet.</div>
-            ) : (
-              <>
-                <div className="trend-wrap">
-                  {/* reference lines */}
-                  <div className="trend-refs">
-                    <div className="mean" />
-                    <div className="sd" />
-                    <div className="sd" />
-                  </div>
+            <div className="trend-wrap">
+              {/* reference lines */}
+              <div className="trend-refs">
+                <div className="mean" />
+                <div className="sd" />
+                <div className="sd" />
+              </div>
 
-                  {/* one thin “track” per domain with dated points */}
-                  {rows.map((r: any, idx: number) => {
-                    const series = history.map((h) => {
-                      const m = h.results.find((x: any) => x.domain === r.domain);
-                      return { when: h.when, T: m?.T ?? 50 };
-                    });
-                    return (
-                      <div key={r.domain} className="trend-line">
-                        <div className="trend-label">{r.domain}</div>
-                        <div className="trend-track">
-                          {series.map((p, i) => {
-                            const x = (i / Math.max(series.length - 1, 1)) * 100;
-                            const y = (p.T - 20) / 60 * 100;
-                            return (
-                              <div
-                                key={p.when ?? i}
-                                className="trend-point"
-                                title={`${r.label}: ${p.T} • ${new Date(p.when).toLocaleString()}`}
-                                style={{ left: `calc(${x}% - 6px)`, top: `calc(${6 - 0}px)` }} // points ride the track; timestamp in tooltip
-                              />
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div style={{ fontSize: 12, color: "#56708a", marginTop: 6 }}>
-                  Y: T-score (20–80). X: Date/time. Hover a point to see timestamp & value.
-                </div>
-              </>
-            )}
+              {Object.keys(tByDomain).map((d, idx) => {
+                const arr = tByDomain[d];
+                if (!arr.length) return null;
+                // Sort by date
+                const sorted = [...arr].sort((a, b) => new Date(a.when) - new Date(b.when));
+                // Position each point horizontally (even spacing)
+                return (
+                  <div key={d + idx} className="trend-line">
+                    <div className="trend-label">{d}</div>
+                    <div className="trend-track">
+                      {sorted.map((pt, i) => {
+                        const left = (i / Math.max(1, sorted.length - 1)) * 100;
+                        return <div key={(pt.when || i) + d} className="trend-point" style={{ left: `${left}%` }} title={`${LABEL[d]} — ${pt.T} — ${new Date(pt.when).toLocaleString()}`} />;
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <small>Y: T-score (20–80). X: Date. One colored line per domain. Hover points for domain, T-score, and date.</small>
           </div>
 
-          {/* centered actions */}
           <div className="actions">
             <button className="pill-btn" onClick={() => window.print()}>Print</button>
-            <button
-              className="pill-btn"
-              onClick={() => {
-                try {
-                  const raw = window.sessionStorage.getItem("promis_last") ?? "{}";
-                  const blob = new Blob([raw], { type: "application/json" });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = "promis-results.json";
-                  a.click();
-                  URL.revokeObjectURL(url);
-                } catch {}
-              }}
-            >
-              Save as JSON
-            </button>
           </div>
           <p className="thanks">Thank you for completing the survey</p>
         </section>

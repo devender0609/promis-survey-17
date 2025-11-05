@@ -1,23 +1,21 @@
 ﻿// app/page.jsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import logo from "@/public/logo_new.svg";
 
-// ----- simple survey model (JS only) -----
+// ----- survey model (JS only) -----
 const DOMAINS = ["PF", "PI", "F", "A", "D", "SR"];
 const LABEL = {
   PF: "Physical Function",
   PI: "Pain Interference",
-  F: "Fatigue",
-  A: "Anxiety",
-  D: "Depression",
+  F:  "Fatigue",
+  A:  "Anxiety",
+  D:  "Depression",
   SR: "Social Roles",
 };
 
-// Minimal fixed bank. Add more items anytime.
 const BANK = [
   { id: "pf1", domain: "PF", prompt: "Are you able to climb one flight of stairs without help?" },
   { id: "pi1", domain: "PI", prompt: "In the past 7 days, did you run out of energy?" },
@@ -27,7 +25,6 @@ const BANK = [
   { id: "sr1", domain: "SR", prompt: "In the past 7 days, I had trouble doing my regular work." },
 ];
 
-// 1–5 responses
 const RESP = [
   { v: 1, label: "Never" },
   { v: 2, label: "Rarely" },
@@ -36,7 +33,7 @@ const RESP = [
   { v: 5, label: "Always" },
 ];
 
-// Map mean raw -> PROMIS-like T (20–80), with direction by domain
+// PROMIS-like 20–80 transform (direction by domain)
 function toT(domain, meanRaw) {
   const centered = meanRaw - 3; // around "Sometimes"
   const slope = 5;
@@ -44,7 +41,6 @@ function toT(domain, meanRaw) {
   const t = 50 + 10 * (sign * slope * centered) / 10;
   return Math.max(20, Math.min(80, Math.round(t)));
 }
-
 function category(domain, t) {
   const worse = domain === "PF" || domain === "SR" ? 50 - t : t - 50;
   if (worse >= 20) return { text: "Severe", color: "#f87171", bg: "#fdecec" };
@@ -56,17 +52,16 @@ function category(domain, t) {
 
 export default function SurveyPage() {
   const router = useRouter();
-
   const [ix, setIx] = useState(0);
   const [answers, setAnswers] = useState([]); // {id, domain, v}
-
   const pct = useMemo(() => Math.round((ix / BANK.length) * 100), [ix]);
   const current = BANK[ix];
 
   function Header() {
     return (
       <header className="site-header">
-        <Image src={logo} alt="Ascension Seton" className="header-logo" priority />
+        {/* Use the public/ file directly to avoid module path issues */}
+        <Image src="/logo_new.svg" alt="Ascension Seton" className="header-logo" width={260} height={54} priority />
       </header>
     );
   }
@@ -81,10 +76,9 @@ export default function SurveyPage() {
       return;
     }
 
-    // compute per-domain T scores, persist to sessionStorage, go to results
+    // compute T per domain, persist, navigate
     const by = { PF: [], PI: [], F: [], A: [], D: [], SR: [] };
     next.forEach((a) => by[a.domain].push(a.v));
-
     const results = DOMAINS.map((d) => {
       const arr = by[d];
       const mean = arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : 3;
@@ -120,14 +114,10 @@ export default function SurveyPage() {
           <h1 className="title">PROMIS Health Snapshot (Adaptive Short Form)</h1>
           <p className="subtitle">Texas Spine and Scoliosis, Austin TX</p>
 
-          {/* Ring */}
           <div className="ring-wrap">
-            <div className="ring">
-              <div className="ring-inner">{pct}%</div>
-            </div>
+            <div className="ring"><div className="ring-inner">{pct}%</div></div>
           </div>
 
-          {/* Prompt & answers */}
           {current && (
             <>
               <h2 className="question">{current.prompt}</h2>
