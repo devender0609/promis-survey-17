@@ -1,9 +1,9 @@
-﻿// app/results/page.jsx
-"use client";
-
+﻿"use client";
 export const revalidate = false;
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
+// app/results/page.jsx
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -184,3 +184,4 @@ export default function ResultsPage() {
     </div>
   );
 }
+
