@@ -2,8 +2,7 @@
 export const revalidate = false;
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
-// app/results/page.jsx
-"use client";
+
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -123,7 +122,7 @@ export default function ResultsPage() {
 
             <div className="trend-wrap">
               {history.slice(0, 12).map((r, idx) => (
-                <div key={r.id} className="trend-row">
+                <div key={r.when ?? idx} className="trend-row">
                   <div className="trend-date">{fmt(r.when)}</div>
                   <div className="trend-track">
                     {DOMAINS.map((d) => {
@@ -161,7 +160,7 @@ export default function ResultsPage() {
                 </thead>
                 <tbody>
                   {history.map((r) => (
-                    <tr key={r.id}>
+                    <tr key={r.when ?? idx}>
                       <td>{fmt(r.when)}</td>
                       {DOMAINS.map(d => (
                         <td key={d.key}>{r.scores?.[d.key] ?? ""}</td>
@@ -184,4 +183,5 @@ export default function ResultsPage() {
     </div>
   );
 }
+
 
