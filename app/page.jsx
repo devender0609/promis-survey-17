@@ -3,194 +3,161 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import logo from "@/public/logo_new.svg";
 
-/**
- * LOCAL-ONLY SURVEY ENGINE
- * - Keep this tiny: a few example items per domain.
- * - Replace/expand as you wish; progress and storage auto-adapt.
- */
-const DOMAINS = [
-  { key: "PF", name: "Physical Function", color: "#3f7de8" },
-  { key: "PI", name: "Pain Interference", color: "#e86a3f" },
-  { key: "F",  name: "Fatigue",           color: "#a65be8" },
-  { key: "SR", name: "Social Roles",      color: "#28a97a" },
-  { key: "A",  name: "Anxiety",           color: "#e8a23f" },
-  { key: "D",  name: "Depression",        color: "#d6486e" },
-];
-
-// 5-point answers mapped to simple T-score deltas (demo purpose)
-const ANSWERS = [
-  { label: "Never",        val: 0 },
-  { label: "Rarely",       val: 1 },
-  { label: "Sometimes",    val: 2 },
-  { label: "Often",        val: 3 },
-  { label: "Always",       val: 4 },
-];
-
-// small demo item bank (3 per domain). Replace with your own as needed.
-const BANK = {
-  PF: [
-    "Are you able to carry a laundry basket up a flight of stairs?",
-    "Are you able to stand for 15 minutes?",
-    "Are you able to do yardwork like raking leaves?",
-  ],
-  PI: [
-    "How much did pain interfere with your day-to-day activities?",
-    "How much did pain interfere with work around the home?",
-    "How much did pain interfere with your social activities?",
-  ],
-  F: [
-    "How often did you run out of energy?",
-    "How often did you feel tired?",
-    "How often did you feel too tired to take a bath or shower?",
-  ],
-  SR: [
-    "I have trouble doing my regular social activities with family or friends.",
-    "I have trouble doing all of my usual work.",
-    "I have trouble doing all the leisure activities I like to do.",
-  ],
-  A: [
-    "I felt fearful.",
-    "I felt worried.",
-    "I felt anxious.",
-  ],
-  D: [
-    "I felt worthless.",
-    "I felt helpless.",
-    "I felt depressed.",
-  ],
+// ---------- simple survey model ----------
+const DOMAINS = ["PF", "PI", "F", "A", "D", "SR"] as const;
+const LABEL: Record<(typeof DOMAINS)[number], string> = {
+  PF: "Physical Function",
+  PI: "Pain Interference",
+  F: "Fatigue",
+  A: "Anxiety",
+  D: "Depression",
+  SR: "Social Roles",
 };
 
-// naive T-score calculator: start at 50 and add small domain-specific shifts
-function computeTScores(responses) {
-  // responses: { PF: [0-4,...], PI: [...], ... }
-  const scores = {};
-  for (const d of DOMAINS) {
-    const arr = responses[d.key] || [];
-    const mean = arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
-    // demo transform: 50 baseline, scale to ~40–60
-    let t = Math.round(50 + (mean - 2) * 4.5); // center at "Sometimes"=2
-    if (t < 20) t = 20;
-    if (t > 80) t = 80;
-    scores[d.key] = t;
-  }
-  return scores;
+// Minimal fixed bank (you can expand freely)
+// Each item has: id, domain, prompt
+const BANK = [
+  { id: "pf1", domain: "PF", prompt: "Are you able to climb one flight of stairs without help?" },
+  { id: "pi1", domain: "PI", prompt: "In the past 7 days, did you run out of energy?" },
+  { id: "f1",  domain: "F",  prompt: "In the past 7 days, how fatigued did you feel?" },
+  { id: "a1",  domain: "A",  prompt: "In the past 7 days, I felt nervous." },
+  { id: "d1",  domain: "D",  prompt: "In the past 7 days, I felt hopeless." },
+  { id: "sr1", domain: "SR", prompt: "In the past 7 days, I had trouble doing my regular work." },
+  // add more items if you like; the logic below adapts automatically
+];
+
+// 1–5 responses (Never…Always)
+const RESP = [
+  { v: 1, label: "Never" },
+  { v: 2, label: "Rarely" },
+  { v: 3, label: "Sometimes" },
+  { v: 4, label: "Often" },
+  { v: 5, label: "Always" },
+];
+
+// PROMIS-style T-score mapping (simple but monotonic):
+// For symptom domains (PI/F/A/D), higher raw -> higher T
+// For function domains (PF/SR), reverse so higher raw -> LOWER limitation (better)
+// T = clamp(20, 50 + 10 * z, 80)
+function toT(domain: (typeof DOMAINS)[number], meanRaw: number) {
+  const centered = meanRaw - 3; // −2..+2 around “Sometimes”
+  const slope = 5; // adjust sensitivity
+  const sign = domain === "PF" || domain === "SR" ? -1 : +1;
+  const t = 50 + 10 * (sign * slope * centered) / 10;
+  return Math.max(20, Math.min(80, Math.round(t)));
+}
+
+// Category from T by domain direction
+function category(domain: (typeof DOMAINS)[number], t: number) {
+  // PF/SR: lower = worse; others: higher = worse
+  const worse = domain === "PF" || domain === "SR" ? 50 - t : t - 50;
+  if (worse >= 20) return { text: "Severe", color: "#f87171", bg: "#fdecec" };
+  if (worse >= 10) return { text: "Moderate", color: "#fb923c", bg: "#fff0e6" };
+  if (Math.abs(worse) < 5) return { text: "Normal", color: "#22c55e", bg: "#eaf8f0" };
+  // mild on either side
+  const mildText = domain === "PF" || domain === "SR" ? "Mild Limitation" : "None–Mild";
+  return { text: mildText, color: "#fbbf24", bg: "#fff9e6" };
 }
 
 export default function SurveyPage() {
-  const router = useRouter();
+  const r = useRouter();
 
-  // current position in [domainIndex, itemIndex]
-  const [di, setDi] = useState(0);
-  const [qi, setQi] = useState(0);
+  // progress ring (0–100)
+  const [ix, setIx] = useState(0);
+  const [answers, setAnswers] = useState<{ id: string; domain: (typeof DOMAINS)[number]; v: number }[]>([]);
 
-  // answers bucket: { PF:[0..4], PI:[..], ... }
-  const [answers, setAnswers] = useState(() =>
-    Object.fromEntries(DOMAINS.map(d => [d.key, []]))
+  const pct = useMemo(
+    () => Math.round((ix / BANK.length) * 100),
+    [ix]
   );
 
-  // total items = sum of each domain's item count
-  const totalItems = useMemo(
-    () => DOMAINS.reduce((sum, d) => sum + (BANK[d.key]?.length || 0), 0),
-    []
-  );
-  const answeredCount = useMemo(
-    () => DOMAINS.reduce((sum, d) => sum + (answers[d.key]?.length || 0), 0),
-    [answers]
-  );
+  const current = BANK[ix];
 
-  const progressPct = Math.round((answeredCount / totalItems) * 100);
+  // header once per app
+  function Header() {
+    return (
+      <header className="site-header">
+        <Image src={logo} alt="Ascension Seton" className="header-logo" priority />
+      </header>
+    );
+  }
 
-  const domain = DOMAINS[di];
-  const itemsForDomain = BANK[domain.key] || [];
-  const question = itemsForDomain[qi];
+  function onAnswer(v: number) {
+    if (!current) return;
+    const next = [...answers, { id: current.id, domain: current.domain as any, v }];
+    setAnswers(next);
 
-  function handleAnswer(val) {
-    setAnswers(prev => {
-      const next = { ...prev };
-      next[domain.key] = [...(next[domain.key] || []), val];
-      return next;
-    });
-
-    // advance
-    const nextQi = qi + 1;
-    if (nextQi < itemsForDomain.length) {
-      setQi(nextQi);
+    if (ix + 1 < BANK.length) {
+      setIx(ix + 1);
     } else {
-      // move to next domain
-      const nextDi = di + 1;
-      if (nextDi < DOMAINS.length) {
-        setDi(nextDi);
-        setQi(0);
-      } else {
-        // finished
-        onFinish();
-      }
+      // compute per-domain mean & T; store in sessionStorage with timestamp; go to results
+      const by: Record<(typeof DOMAINS)[number], number[]> = { PF: [], PI: [], F: [], A: [], D: [], SR: [] };
+      next.forEach(a => by[a.domain].push(a.v));
+      const results = DOMAINS.map((d) => {
+        const arr = by[d];
+        const mean = arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : 3;
+        const T = toT(d, mean);
+        const cat = category(d, T);
+        return { domain: d, label: LABEL[d], mean, T, category: cat.text, catColor: cat.color, catBg: cat.bg };
+      });
+
+      const payload = {
+        when: new Date().toISOString(),
+        sessionId: `PROMIS-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
+        results,
+      };
+
+      try {
+        const histKey = "promis_history";
+        const raw = window.sessionStorage.getItem(histKey);
+        const hist = raw ? JSON.parse(raw) : [];
+        hist.push(payload);
+        window.sessionStorage.setItem(histKey, JSON.stringify(hist));
+        window.sessionStorage.setItem("promis_last", JSON.stringify(payload));
+      } catch (_) {}
+
+      r.push("/results");
     }
   }
 
-  function onFinish() {
-    const tScores = computeTScores(answers);
-    const nowISO = new Date().toISOString();
-    const run = {
-      id: `${Date.now()}`,
-      when: nowISO,
-      scores: tScores, // {PF:xx, PI:xx, ...}
-    };
-
-    try {
-      // latest (for immediate Results render)
-      localStorage.setItem("promis_latest_run", JSON.stringify(run));
-
-      // history
-      const hist = JSON.parse(localStorage.getItem("promis_history") || "[]");
-      hist.push(run);
-      localStorage.setItem("promis_history", JSON.stringify(hist));
-    } catch {}
-
-    router.push("/results");
-  }
-
   return (
-    <div className="card">
-      <h1 className="title">PROMIS Survey</h1>
-      <p className="subtitle">Ascension Seton • Complete all questions</p>
+    <>
+      <Header />
 
-      {/* progress ring */}
-      <div className="ring-wrap">
-        <div className="ring" role="progressbar" aria-valuenow={progressPct}>
-          <div className="ring-inner">{progressPct}%</div>
-        </div>
-      </div>
+      <main className="page-wrap">
+        <section className="card">
+          <h1 className="title">PROMIS Health Snapshot (Adaptive Short Form)</h1>
+          <p className="subtitle">Texas Spine and Scoliosis, Austin TX</p>
 
-      {/* current domain pill */}
-      <div className="pill-row">
-        {DOMAINS.map((d, idx) => (
-          <span
-            key={d.key}
-            className={`pill ${idx === di ? "pill-active" : ""}`}
-            style={{ borderColor: d.color, color: d.color }}
-          >
-            {d.name}
-          </span>
-        ))}
-      </div>
+          {/* Ring */}
+          <div className="ring-wrap">
+            <div className="ring">
+              <div className="ring-inner">{pct}%</div>
+            </div>
+          </div>
 
-      {/* question */}
-      <div className="question">{question}</div>
-
-      {/* answers */}
-      <div className="answer-row">
-        {ANSWERS.map((a) => (
-          <button
-            key={a.label}
-            className="answer-button"
-            onClick={() => handleAnswer(a.val)}
-          >
-            {a.label}
-          </button>
-        ))}
-      </div>
-    </div>
+          {/* Prompt */}
+          {current && (
+            <>
+              <h2 className="question">{current.prompt}</h2>
+              <div className="answer-row">
+                {RESP.map((o) => (
+                  <button
+                    key={o.v}
+                    className="answer-button"
+                    onClick={() => onAnswer(o.v)}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+      </main>
+    </>
   );
 }

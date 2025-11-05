@@ -1,181 +1,243 @@
-// app/results/ClientResults.jsx
+// app/results/ResultsClient.jsx
 "use client";
-import { useEffect, useMemo, useState } from "react";
-import { DOMAINS, categoryFor, interpretations } from "../lib/survey";
 
-const domainNames = {
+import { useEffect, useMemo, useState } from "react";
+
+// ----- helpers to read session data safely
+function readJSON(key, fallback) {
+  try {
+    const raw = sessionStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+const CAT_COLORS = {
+  PF: "#0ea5e9",
+  PI: "#ef4444",
+  F:  "#10b981",
+  SR: "#8b5cf6",
+  A:  "#f59e0b",
+  D:  "#ec4899",
+};
+
+const NICE_LABEL = {
   PF: "Physical Function",
   PI: "Pain Interference",
   F:  "Fatigue",
+  SR: "Social Roles",
   A:  "Anxiety",
   D:  "Depression",
-  SR: "Social Roles",
 };
 
-export default function ClientResults(){
+export default function ResultsClient() {
   const [data, setData] = useState(null);
+  const [history, setHistory] = useState([]);
 
   useEffect(() => {
-    const raw = sessionStorage.getItem("promis_result");
-    if (raw){
-      try { setData(JSON.parse(raw)); } catch {}
-    }
+    const d = readJSON("promis_results", null);
+    const h = readJSON("promis_history", []);
+    setData(d);
+    setHistory(Array.isArray(h) ? h : []);
   }, []);
 
+  // assure shape + sanitize
   const rows = useMemo(() => {
-    if (!data?.tScores) return [];
-    return DOMAINS.map(d => {
-      const t = Number(data.tScores[d]?.toFixed ? data.tScores[d].toFixed(1) : data.tScores[d]);
-      const cat = categoryFor(d, t);
-      const interp = interpretations[d];
-      return { d, name: domainNames[d], t, cat, interp };
-    });
+    if (!data || !data.scores) return [];
+    return Object.entries(data.scores).map(([k, v]) => ({
+      code: k,
+      label: NICE_LABEL[k] ?? k.replace(/[^\w\s-]/g, ""),
+      t: typeof v?.t === "number" ? v.t : null,
+      mean: typeof v?.mean === "number" ? v.mean : null,
+      sd: typeof v?.sd === "number" ? v.sd : null,
+      badge: v?.badge || "",
+      color: CAT_COLORS[k] ?? "#0e4a6f",
+    }));
   }, [data]);
 
-  const completedOn = useMemo(() => {
-    if (!data?.stamp) return "";
-    try{
-      const dt = new Date(data.stamp);
-      return dt.toLocaleString();
-    }catch{ return ""; }
+  // ensure a timestamped history entry exists for trend
+  useEffect(() => {
+    if (!data?.scores) return;
+    const when = data.when ?? new Date().toISOString();
+    const snapshot = { when, scores: data.scores };
+    const h = readJSON("promis_history", []);
+    const merged =
+      Array.isArray(h) && h.length && h[h.length - 1]?.when === when
+        ? h
+        : [...(Array.isArray(h) ? h : []), snapshot];
+    sessionStorage.setItem("promis_history", JSON.stringify(merged));
+    setHistory(merged);
   }, [data]);
 
   if (!data) {
     return (
-      <div className="card results-card">
-        <h1>PROMIS Assessment Results</h1>
-        <div className="subtle">Texas Spine and Scoliosis, Austin TX</div>
-        <p className="subtle">No results found. Please complete the survey first.</p>
+      <div className="page-wrap">
+        <header className="site-header">
+          <img src="/logo_new.svg" alt="Ascension Seton" className="header-logo" />
+        </header>
+        <div className="card">
+          <h1 className="title">Results</h1>
+          <p className="subtitle">No results found in this session.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <>
-      <section className="card results-card">
-        <h1>PROMIS Assessment Results</h1>
-        <div className="subtle">Texas Spine and Scoliosis, Austin TX</div>
-        <div className="meta-small" style={{marginTop:8}}>
-          Completed on {completedOn} — <strong>Session ID:</strong> {data.sessionId}
+    <div className="page-wrap">
+      <header className="site-header">
+        <img src="/logo_new.svg" alt="Ascension Seton" className="header-logo" />
+      </header>
+
+      {/* top card with summary */}
+      <div className="card">
+        <h1 className="title">PROMIS Results</h1>
+        <p className="subtitle">
+          Completed on{" "}
+          {new Date(data.when ?? Date.now()).toLocaleString()}
+        </p>
+
+        {/* bars with values + reference lines */}
+        <div className="chart-card">
+          <h3>Domain T-scores</h3>
+          <div className="bars">
+            {rows.map((r) => {
+              const pct = r.t != null ? Math.min(100, Math.max(0, (r.t / 80) * 100)) : 0;
+              return (
+                <div key={r.code} className="bar">
+                  <div
+                    className="bar-fill"
+                    style={{ height: `${pct}%`, background: r.color }}
+                    title={`${r.label}: ${r.t ?? "—"}`}
+                  >
+                    <span className="bar-value">{r.t ?? "—"}</span>
+                  </div>
+                  <div className="bar-label">{r.label}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="ref-lines">
+            <div className="ref mean" />
+            <div className="ref sd" />
+            <div className="ref sd" />
+          </div>
         </div>
 
-        <table className="table" style={{marginTop:14}}>
-          <thead>
-            <tr>
-              <th style={{width:"34%"}}>Domain</th>
-              <th style={{width:"12%"}}>T-score</th>
-              <th style={{width:"18%"}}>Category</th>
-              <th>Interpretation</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(r => (
-              <tr key={r.d}>
-                <td>{r.name}</td>
-                <td>{r.t}</td>
-                <td><span className={`badge ${r.cat.className}`}>{r.cat.label}</span></td>
-                <td>{r.interp}</td>
+        {/* trend over time */}
+        <div className="chart-card">
+          <h3>Trend Over Time</h3>
+          <div className="trend-wrap">
+            {/* One compact row per domain */}
+            {Object.keys(CAT_COLORS).map((code) => {
+              const color = CAT_COLORS[code];
+              const label = NICE_LABEL[code] ?? code;
+              // lay points across the track (sorted by when)
+              const points = history
+                .filter((h) => h?.scores?.[code]?.t != null)
+                .sort((a, b) => new Date(a.when) - new Date(b.when));
+              return (
+                <div key={label} className="trend-line" aria-label={label}>
+                  <div className="trend-label">{label}</div>
+                  <div className="trend-track">
+                    {points.map((h, i) => {
+                      const t = h.scores[code].t;
+                      const pct = Math.min(100, Math.max(0, (t / 80) * 100));
+                      const x = points.length > 1 ? (i / (points.length - 1)) * 100 : 0;
+                      return (
+                        <div
+                          key={h.when ?? i}
+                          className="trend-point"
+                          title={`${label} • ${new Date(h.when).toLocaleString()} • T=${t}`}
+                          style={{ left: `calc(${x}% - 6px)`, background: color }}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+            <div className="trend-refs">
+              <div className="mean" />
+              <div className="sd" />
+              <div className="sd" />
+            </div>
+          </div>
+        </div>
+
+        {/* actions */}
+        <div className="actions">
+          <button className="pill-btn" onClick={() => window.print()}>
+            Print
+          </button>
+          <button
+            className="pill-btn"
+            onClick={() => {
+              // simple CSV export (Excel-openable)
+              const header = ["When", ...rows.map((r) => r.label)];
+              const lines = [header.join(",")];
+              history.forEach((h) => {
+                const cols = [new Date(h.when).toLocaleString()];
+                rows.forEach((r) => {
+                  cols.push(h?.scores?.[r.code]?.t ?? "");
+                });
+                lines.push(cols.join(","));
+              });
+              const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = "promis_results.csv";
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            Export to Excel (CSV)
+          </button>
+        </div>
+      </div>
+
+      {/* centered results table with color-coded categories */}
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>Detailed Table</h3>
+        <div className="table-wrap center">
+          <table className="results-table">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>T-score</th>
+                <th>Mean</th>
+                <th>SD</th>
+                <th>Badge</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      {/* Bar chart (pure SVG, no deps) */}
-      <section className="chart-card" style={{marginTop:18}}>
-        <h3 className="chart-title">PROMIS T-scores</h3>
-        <Bars rows={rows}/>
-        <p className="meta-small" style={{marginTop:8}}>
-          PROMIS T-score (mean 50, SD 10). Shaded band indicates MCID zone (~±3 around 50). Mean 50 (solid), ±1 SD (dashed).
-        </p>
-      </section>
-
-      {/* Trends over time — for demo, we show one point per domain at this date */}
-      <section className="chart-card" style={{marginTop:18}}>
-        <h3 className="chart-title">Trends over time</h3>
-        <Trend rows={rows}/>
-        <p className="meta-small" style={{marginTop:8}}>
-          Y: T-score (20–80). X: Date. One colored line per domain. Hover points for domain, T-score, and date.
-        </p>
-        <div className="btn-row">
-          <button className="btn ghost" onClick={()=>window.print()}>Save as PDF</button>
-          <button className="btn ghost" onClick={()=>alert("Submitting & finishing…")}>Submit & Finish</button>
-          <button className="btn ghost" onClick={()=>window.print()}>Print</button>
-          <button className="btn ghost" onClick={()=>alert("Email feature can be wired to your backend.")}>Email Results</button>
+            </thead>
+            <tbody>
+              {rows.map((r, idx) => (
+                <tr key={r.code ?? idx}>
+                  <td>
+                    <span
+                      className="pill"
+                      style={{
+                        background: `${r.color}15`,
+                        borderColor: `${r.color}55`,
+                        color: r.color,
+                      }}
+                    >
+                      {r.label}
+                    </span>
+                  </td>
+                  <td>{r.t ?? "—"}</td>
+                  <td>{r.mean ?? "—"}</td>
+                  <td>{r.sd ?? "—"}</td>
+                  <td>{r.badge}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <div className="subtle" style={{textAlign:"center"}}>Thank you for completing the survey</div>
-      </section>
-    </>
-  );
-}
-
-function Bars({ rows }) {
-  const w = 900, h = 260, pad = 40;
-  const max = 80, min = 20;
-  const bandTop = yOf(53), bandBot = yOf(47);
-  const mean = yOf(50), sdTop = yOf(60), sdBot = yOf(40);
-  const colWidth = (w - pad*2) / rows.length;
-
-  function yOf(t){ 
-    const pct = (t - min) / (max - min);
-    return h - pad - pct*(h - pad*2);
-  }
-
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} width="100%">
-      {/* horizontal guides */}
-      <rect x={pad} y={bandTop} width={w- pad*2} height={bandBot - bandTop} fill="#e9f5ff"/>
-      <line x1={pad} x2={w-pad} y1={mean} y2={mean} stroke="#b2c5d8" strokeWidth="2"/>
-      <line x1={pad} x2={w-pad} y1={sdTop} y2={sdTop} stroke="#d9e4ee" strokeDasharray="6 6"/>
-      <line x1={pad} x2={w-pad} y1={sdBot} y2={sdBot} stroke="#d9e4ee" strokeDasharray="6 6"/>
-
-      {rows.map((r, i) => {
-        const x = pad + i*colWidth + colWidth*0.18;
-        const bw = colWidth*0.64;
-        const y = yOf(r.t);
-        const base = yOf(20);
-        const color = ["#3b82f6","#ef4444","#8b5cf6","#f59e0b","#10b981","#ec4899"][i % 6];
-        return (
-          <g key={r.d}>
-            <rect x={x} y={y} width={bw} height={base - y} rx="8" fill={color} />
-            <text className="bar-label" x={x + bw/2} y={base + 16}>{r.d}</text>
-            <text className="bar-value" x={x + bw/2} y={y - 8}>{r.t}</text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-function Trend({ rows }) {
-  // For now, draw a single-date “trend” baseline per domain
-  const w = 900, h = 260, pad = 40;
-  const min = 20, max = 80;
-  function yOf(t){ 
-    const pct = (t - min) / (max - min);
-    return h - pad - pct*(h - pad*2);
-  }
-  const mean = yOf(50), sdTop = yOf(60), sdBot = yOf(40);
-
-  const x1 = pad+40, x2 = w - pad - 40, mid = (x1+x2)/2;
-
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} width="100%">
-      <line x1={pad} x2={w-pad} y1={mean} y2={mean} stroke="#b2c5d8" strokeWidth="2"/>
-      <line x1={pad} x2={w-pad} y1={sdTop} y2={sdTop} stroke="#d9e4ee" strokeDasharray="6 6"/>
-      <line x1={pad} x2={w-pad} y1={sdBot} y2={sdBot} stroke="#d9e4ee" strokeDasharray="6 6"/>
-
-      {rows.map((r, i) => {
-        const color = ["#3b82f6","#ef4444","#8b5cf6","#f59e0b","#10b981","#ec4899"][i % 6];
-        const y = yOf(r.t);
-        // flat line with a single point (today)
-        return (
-          <g key={r.d}>
-            <line x1={x1} y1={y} x2={x2} y2={y} stroke={color} strokeWidth="3" opacity=".85"/>
-            <circle cx={mid} cy={y} r="6" fill={color}/>
-          </g>
-        );
-      })}
-    </svg>
+        <p className="thanks">Thank you for completing the survey.</p>
+      </div>
+    </div>
   );
 }
