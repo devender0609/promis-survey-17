@@ -110,7 +110,7 @@ export default function SurveyPage() {
     <div className="page-wrap">
       {/* Header with logo */}
       <header className="site-header">
-        <Image src={logo} alt="Ascension Seton" className="header-logo" priority />
+        <Image src="/logo_new.png" alt="Ascension Seton" className="header-logo" priority />
       </header>
 
       <main className="card">
@@ -145,5 +145,7 @@ export default function SurveyPage() {
     </div>
   );
 }
+
+
 
 

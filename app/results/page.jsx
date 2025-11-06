@@ -53,7 +53,7 @@ export default function ResultsPage() {
     return (
       <div className="page-wrap">
         <header className="site-header">
-          <Image src={logo} alt="Ascension Seton" className="header-logo" priority />
+          <Image src="/logo_new.png" alt="Ascension Seton" className="header-logo" priority />
         </header>
 
         <div className="card">
@@ -70,7 +70,7 @@ export default function ResultsPage() {
   return (
     <div className="page-wrap">
       <header className="site-header">
-        <Image src={logo} alt="Ascension Seton" className="header-logo" priority />
+        <Image src="/logo_new.png" alt="Ascension Seton" className="header-logo" priority />
       </header>
 
       <div className="card">
@@ -148,5 +148,7 @@ export default function ResultsPage() {
     </div>
   );
 }
+
+
 
 
