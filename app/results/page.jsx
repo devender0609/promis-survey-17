@@ -1,6 +1,8 @@
 ﻿"use client";
 
-export const revalidate = false; // IMPORTANT: number or false only
+
+export const dynamic = 'force-dynamic';
+export const revalidate = false; // (0 is also fine)
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
