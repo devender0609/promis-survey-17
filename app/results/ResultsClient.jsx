@@ -1,163 +1,139 @@
-﻿// app/results/page.jsx
+@'
 "use client";
+import { useEffect, useState } from "react";
 
-// Never prerender/cache this route
-export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
-
-import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
-
-const LABEL = {
+const DOMAINS = ["PF", "PI", "F", "A", "D", "SR"];
+const LABELS = {
   PF: "Physical Function",
   PI: "Pain Interference",
-  F:  "Fatigue",
-  A:  "Anxiety",
-  D:  "Depression",
+  F: "Fatigue",
+  A: "Anxiety",
+  D: "Depression",
   SR: "Social Roles",
 };
+// brand colors per domain
+const COLORS = {
+  PF: "#3b82f6",
+  PI: "#ef4444",
+  F: "#a855f7",
+  A: "#22c55e",
+  D: "#f59e0b",
+  SR: "#06b6d4",
+};
 
-export default function ResultsPage() {
+export default function ResultsClient() {
   const [last, setLast] = useState(null);
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
     try {
-      const l = window.sessionStorage.getItem("promis_last");
-      const h = window.sessionStorage.getItem("promis_history");
-      if (l) setLast(JSON.parse(l));
-      if (h) setHistory(JSON.parse(h));
-    } catch {}
+      const raw = localStorage.getItem("promis_history_v1");
+      if (!raw) return;
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) {
+        setHistory(arr);
+        if (arr.length) setLast(arr[arr.length - 1]);
+      }
+    } catch (e) {
+      console.error("Failed to read history from localStorage", e);
+    }
   }, []);
 
-  const rows = last?.results || [];
-  const tByDomain = useMemo(() => {
-    const map = { PF: [], PI: [], F: [], A: [], D: [], SR: [] };
-    history.forEach((r) => {
-      (r.results || []).forEach((x) => {
-        map[x.domain].push({ when: r.when, T: x.T });
-      });
-    });
-    return map;
-  }, [history]);
+  if (!last) {
+    return (
+      <div className="card">
+        <h2 className="title">Your PROMIS Results</h2>
+        <p style={{ textAlign: "center", margin: "12px 0" }}>
+          No results found yet. Please complete the survey first.
+        </p>
+      </div>
+    );
+  }
+
+  const clampPct = (v) => Math.max(0, Math.min(100, v ?? 0));
 
   return (
-    <>
-      <header className="site-header">
-        <Image src="/logo_new.svg" alt="Ascension Seton" className="header-logo" width={260} height={54} priority />
-      </header>
+    <div>
+      {/* Bars */}
+      <section className="card">
+        <h2 className="title">Your PROMIS Results</h2>
+        <div className="bars">
+          {DOMAINS.map((d) => {
+            const v = Math.round(last?.t?.[d] ?? 50);
+            return (
+              <div className="bar" key={d}>
+                <div
+                  className="bar-fill"
+                  style={{ height: `${clampPct(v)}%`, background: COLORS[d] }}
+                >
+                  <span className="bar-value">{v}</span>
+                </div>
+                <div className="bar-label">{LABELS[d]}</div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
-      <main className="page-wrap">
-        <section className="card">
-          <h1 className="title">PROMIS Assessment Results</h1>
-          <p className="subtitle">
-            Texas Spine and Scoliosis, Austin TX
-            {last?.sessionId ? <> — <strong>Session ID:</strong> {last.sessionId}</> : null}
-          </p>
+      {/* Trend over time */}
+      <section className="card">
+        <h3 className="subtitle" style={{ textAlign: "center" }}>
+          Trend over time
+        </h3>
+        <div className="trend-wrap">
+          {history.map((r, idx) => (
+            <div className="trend-line" key={r.when ?? idx}>
+              <div className="trend-label">
+                {new Date(r.when ?? Date.now()).toLocaleDateString()}
+              </div>
+              <div className="trend-track">
+                {DOMAINS.map((d) => {
+                  const v = Math.round(r?.t?.[d] ?? 50);
+                  const left = `${clampPct(v)}%`;
+                  return (
+                    <div
+                      key={d}
+                      className="trend-point"
+                      style={{ left, background: COLORS[d] }}
+                      title={`${LABELS[d]}: ${v}`}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
-          {/* Results table */}
-          <div className="table-wrap" style={{ display: "flex", justifyContent: "center" }}>
-            <table className="results-table" style={{ maxWidth: 980 }}>
-              <thead>
-                <tr>
-                  <th>Domain</th>
-                  <th>T-score</th>
-                  <th>Category</th>
-                  <th>Interpretation</th>
+      {/* Centered table */}
+      <section className="card">
+        <div
+          className="table-wrap"
+          style={{ display: "flex", justifyContent: "center" }}
+        >
+          <table className="results-table" style={{ maxWidth: 900 }}>
+            <thead>
+              <tr>
+                <th>Date & Time</th>
+                {DOMAINS.map((d) => (
+                  <th key={d}>{LABELS[d]}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((r, idx) => (
+                <tr key={r.when ?? idx}>
+                  <td>{new Date(r.when ?? Date.now()).toLocaleString()}</td>
+                  {DOMAINS.map((d) => (
+                    <td key={d}>{Math.round(r?.t?.[d] ?? 50)}</td>
+                  ))}
                 </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, idx) => {
-                  const interp =
-                    r.domain === "PF" || r.domain === "SR"
-                      ? "Higher scores indicate BETTER function/ability."
-                      : "Higher scores indicate MORE of the symptom/problem.";
-                return (
-                  <tr key={r.label + idx}>
-                    <td>{r.label}</td>
-                    <td>{r.T}</td>
-                    <td>
-                      <span
-                        className="pill"
-                        style={{ color: r.catColor, background: r.catBg, borderColor: r.catColor + "22" }}
-                        title={r.category}
-                      >
-                        {r.category}
-                      </span>
-                    </td>
-                    <td>{interp}</td>
-                  </tr>
-                );})}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Simple bar chart */}
-          <div className="chart-card">
-            <h3>PROMIS T-scores</h3>
-            <div className="bars">
-              <div className="ref-lines">
-                <div className="ref mean" />
-                <div className="ref sd" />
-                <div className="ref sd" />
-              </div>
-              {rows.map((r) => {
-                // Bar height: map T 20–80 onto 20–100%
-                const h = 20 + ((r.T - 20) / 60) * 80;
-                return (
-                  <div className="bar" key={r.label}>
-                    <div className="bar-fill" style={{ height: `${h}%` }}>
-                      <span className="bar-value">{r.T}</span>
-                    </div>
-                    <div className="bar-label">{r.domain}</div>
-                  </div>
-                );
-              })}
-            </div>
-            <small>PROMIS T-score (mean 50, SD 10). Shaded band indicates MCID zone (~±3 around 50). Mean 50 (solid), ±1 SD (dashed).</small>
-          </div>
-
-          {/* Trends over time */}
-          <div className="chart-card">
-            <h3>Trends over time</h3>
-            <div className="trend-wrap">
-              {/* reference lines */}
-              <div className="trend-refs">
-                <div className="mean" />
-                <div className="sd" />
-                <div className="sd" />
-              </div>
-
-              {Object.keys(tByDomain).map((d, idx) => {
-                const arr = tByDomain[d];
-                if (!arr.length) return null;
-                // Sort by date
-                const sorted = [...arr].sort((a, b) => new Date(a.when) - new Date(b.when));
-                // Position each point horizontally (even spacing)
-                return (
-                  <div key={d + idx} className="trend-line">
-                    <div className="trend-label">{d}</div>
-                    <div className="trend-track">
-                      {sorted.map((pt, i) => {
-                        const left = (i / Math.max(1, sorted.length - 1)) * 100;
-                        return <div key={(pt.when || i) + d} className="trend-point" style={{ left: `${left}%` }} title={`${LABEL[d]} — ${pt.T} — ${new Date(pt.when).toLocaleString()}`} />;
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <small>Y: T-score (20–80). X: Date. One colored line per domain. Hover points for domain, T-score, and date.</small>
-          </div>
-
-          <div className="actions">
-            <button className="pill-btn" onClick={() => window.print()}>Print</button>
-          </div>
-          <p className="thanks">Thank you for completing the survey</p>
-        </section>
-      </main>
-    </>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   );
 }
-
-
+'@ | Set-Content -Path .\app\results\ResultsClient.jsx -Encoding UTF8
