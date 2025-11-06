@@ -1,5 +1,5 @@
 /* header */
-.site-header{display:flex;justify-content:center;align-items:center;padding:10px 12px;background:linear-gradient(#edf6fb,#eef6fb90);border-bottom:1px solid #dbe7f3}
+.site-header{display:flex;justify-content:center;align-items:center;padding:10px 12px;background:linear-gradient(#edf6fb,#eef6fb90);border-bottom:1px solid #dbe7f3;}
 .header-logo{height:52px;width:auto;display:block}
 
 /* layout */
@@ -10,37 +10,28 @@
 
 /* ring */
 .ring-wrap{display:flex;justify-content:center;margin:14px 0 8px}
-.ring{width:140px;height:140px;border-radius:50%;border:12px solid #e8f0f6;display:flex;align-items:center;justify-content:center}
+.ring{width:140px;height:140px;border-radius:50%;border:12px solid #e8f0f6;display:flex;align-items:center;justify-content:center;position:relative}
 .ring-inner{font-size:28px;font-weight:800;color:#0e4a6f}
 
 /* question + answers */
-.question{font-size:28px;line-height:1.25;margin:18px 0 14px;color:#0f4a6e;font-weight:800}
+.question{font-size:26px;line-height:1.25;margin:18px 0 14px;color:#0f4a6e;font-weight:800}
 .answer-row{display:grid;grid-template-columns:repeat(5,1fr);gap:16px}
 .answer-button{padding:16px 18px;border:none;border-radius:16px;background:#0e4a6f;color:#fff;font-weight:700;box-shadow:0 6px 18px rgba(14,74,111,.18);cursor:pointer}
 .answer-button:hover{transform:translateY(-1px)}
 
-/* results table */
+/* results table + pills */
 .table-wrap{overflow:auto;margin:6px 0 18px}
 .results-table{width:100%;border-collapse:separate;border-spacing:0}
 .results-table th,.results-table td{padding:12px 14px;border-bottom:1px solid #eaf1f7;text-align:left}
-.pill{padding:6px 10px;border-radius:999px;border:1px solid rgba(0,0,0,.06);font-weight:700;font-size:12.5px}
-
-/* bars */
-.chart-card{background:#f9fcff;border:1px solid #e7eff7;border-radius:14px;padding:16px;margin:12px 0}
-.chart-card h3{margin:0 0 10px;color:#0e4a6f}
-.bars{display:flex;gap:18px;align-items:flex-end;height:220px;padding:10px 12px;border-radius:10px;background:#fff;border:1px solid #e7eff7}
-.bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
-.bar-fill{width:100%;background:#4b9be0;border-radius:8px;position:relative;display:flex;align-items:flex-end;justify-content:center}
-.bar-value{position:absolute;top:-22px;font-weight:700;color:#0e4a6f}
-.bar-label{margin-top:6px;font-size:12.5px;color:#47647a}
-.ref-lines{position:relative;height:0}
-.ref{position:relative;height:0}
-.ref.mean:after{content:"";position:absolute;left:0;right:0;top:-180px;border-top:3px solid rgba(16,74,111,.7)}
-.ref.sd:after{content:"";position:absolute;left:0;right:0;top:-150px;border-top:2px dashed rgba(16,74,111,.45)}
-.ref.sd:nth-of-type(3):after{top:-210px}
+.pill{padding:6px 10px;border-radius:999px;border:1px solid rgba(0,0,0,.05);font-weight:700;font-size:12.5px}
+.pill.ok{background:#e9f8ee;color:#146c2e}
+.pill.mild{background:#fff6da;color:#8a6b00}
+.pill.mod{background:#ffe8d9;color:#8a3c00}
+.pill.sev{background:#ffe1e1;color:#9a1e1e}
 
 /* trends */
-.trend-wrap{position:relative;padding:8px 6px 6px;background:#fff;border:1px solid #e7eff7;border-radius:10px}
+.chart-card{background:#f9fcff;border:1px solid #e7eff7;border-radius:14px;padding:16px;margin:12px 0}
+.chart-card h3{margin:0 0 10px;color:#0e4a6f}
 .trend-line{display:flex;align-items:center;height:28px;margin:4px 0}
 .trend-label{width:40px;text-align:right;margin-right:10px;color:#41627a;font-weight:600}
 .trend-track{position:relative;flex:1;height:6px;border-radius:999px;background:linear-gradient(90deg,#f2f8fd,#eef6fb)}
@@ -50,7 +41,7 @@
 .trend-refs .sd{position:absolute;left:50px;right:12px;top:-52px;border-top:2px dashed rgba(16,74,111,.5)}
 .trend-refs .sd:last-child{top:-88px}
 
-/* centered actions */
+/* actions */
 .actions{display:flex;justify-content:center;gap:10px;margin:12px 0 4px}
 .pill-btn{background:#0e4a6f;color:#fff;border:none;border-radius:999px;padding:10px 14px;font-weight:700;box-shadow:0 6px 16px rgba(14,74,111,.14);cursor:pointer}
 .pill-btn:hover{transform:translateY(-1px)}
