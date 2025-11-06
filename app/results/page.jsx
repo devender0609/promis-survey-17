@@ -1,6 +1,5 @@
 ﻿"use client";
 
-
 export const dynamic = 'force-dynamic';
 export const revalidate = false; // (0 is also fine)
 
