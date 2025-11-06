@@ -5,7 +5,6 @@ export const revalidate = false; // IMPORTANT: number or false only
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import logo from "@/public/logo_new.png";
 
 const LABEL = {
   PF: "Physical Function",
@@ -148,6 +147,7 @@ export default function ResultsPage() {
     </div>
   );
 }
+
 
 
 

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import logo from "@/public/logo_new.png";
 
 /** ---------------- Survey model (simple) ---------------- */
 const DOMAINS = ["PF", "PI", "F", "A", "D", "SR"]; // Physical Function, Pain Interference, Fatigue, Anxiety, Depression, Social Roles
@@ -145,6 +144,7 @@ export default function SurveyPage() {
     </div>
   );
 }
+
 
 
 
